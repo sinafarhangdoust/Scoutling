@@ -1,2 +1,2 @@
-# resume_generator
-Generates tailored resumes.
+# Resume Generator
+Generates tailored resumes to make your job application process less miserable.

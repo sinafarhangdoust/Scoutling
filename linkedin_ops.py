@@ -11,7 +11,9 @@ from pydantic import BaseModel, Field
 from constants import (
     COUNTRY2GEOID,
     LOC2FPP,
-    JOBS_EXTRACTION_PATTERN
+    JOBS_EXTRACTION_PATTERN,
+    DETAIL_LOCATION_PATTERN,
+    DETAIL_DESCRIPTION_PATTERN,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -95,6 +97,27 @@ class LinkedinOps:
         return COUNTRY2GEOID[location], LOC2FPP[location]
 
     @staticmethod
+    def _clean_html(raw_html: str) -> str:
+        """
+        Helper to remove HTML tags and clean up entities for the description.
+        """
+        # Replace line breaks with newlines
+        text = re.sub(r'<br\s*/?>', '\n', raw_html)
+        text = re.sub(r'</?p>', '\n', text)
+        text = re.sub(r'</li>', '\n', text)  # End of list item = newline
+
+        # Remove all remaining HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+
+        # Decode common HTML entities
+        text = text.replace('&amp;', '&').replace('&nbsp;', ' ').replace('&gt;', '>').replace('&lt;', '<')
+
+        # Collapse multiple newlines into max two
+        text = re.sub(r'\n\s*\n', '\n\n', text)
+
+        return text.strip()
+
+    @staticmethod
     def process_jobs(response: str) -> List[Job]:
         """
         processes the response of the get_jobs function and returns a list of Jobs
@@ -159,12 +182,37 @@ class LinkedinOps:
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
         return jobs[:n_jobs]
 
+
+    def process_job_info(self, response: str) -> Tuple[str | None, str | None]:
+        """
+        Parses the detailed Job page HTML and returns location and full description.
+        """
+        location = None
+        description = None
+
+        # 1. Extract Location (Take the first match, which is usually the geo location)
+        loc_match = re.search(DETAIL_LOCATION_PATTERN, response)
+        if loc_match:
+            location = loc_match.group(1).strip()
+
+        # 2. Extract Description
+        desc_match = re.search(DETAIL_DESCRIPTION_PATTERN, response)
+        if desc_match:
+            raw_html = desc_match.group(1)
+            description = self._clean_html(raw_html)
+
+        return location, description
+
     async def get_job_info(self, job: Job):
         response = await ahttp_with_retry(
             client=self.ahttp_client,
             headers=self.headers,
             url=job.url,
         )
+        if response:
+            Job.location, job.description = self.process_job_info(response)
+
+        return job
 
 
 async def main():
@@ -176,8 +224,8 @@ async def main():
             location=location,
             n_jobs=10,
         )
-        await linkedin_ops.get_job_info(jobs[1])
-        print()
+        job_info_futures = [asyncio.create_task(linkedin_ops.get_job_info(job=job)) for job in jobs]
+        jobs = await asyncio.gather(*job_info_futures, return_exceptions=True)
 
 if __name__ == "__main__":
     asyncio.run(main())

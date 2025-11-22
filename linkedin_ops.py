@@ -151,6 +151,63 @@ class LinkedinOps:
 
         return results
 
+    @staticmethod
+    def process_job_info(response: str) -> Tuple[str | None, str | None]:
+        """
+        Parses the detailed Job page.
+        Priority 1: JSON-LD (Structured Data)
+        Priority 2: HTML Regex (Fallback)
+        """
+        location = None
+        description = None
+
+        # --- STRATEGY 1: JSON-LD (Most Reliable) ---
+        json_match = re.search(r'<script type="application/ld\+json">\s*({.*?})\s*</script>', response, re.DOTALL)
+        if json_match:
+            try:
+                data = json.loads(json_match.group(1))
+
+                if 'jobLocation' in data and 'address' in data['jobLocation']:
+                    addr = data['jobLocation']['address']
+
+                    parts = [
+                        addr.get('addressLocality'),
+                        addr.get('addressRegion'),
+                        addr.get('addressCountry')
+                    ]
+                    location = ", ".join([p for p in parts if p])
+
+                if 'description' in data:
+                    description = LinkedinOps._clean_html(html.unescape(data['description']))
+            except:
+                pass  # Fallback to regex if JSON fails
+
+        # --- STRATEGY 2: Regex Fallback ---
+        # Only run if we didn't find data in JSON-LD
+        if not location:
+            # re.DOTALL ensures '.' matches newlines
+            loc_match = re.search(DETAIL_LOCATION_PATTERN, response, re.DOTALL)
+            if loc_match:
+                location = loc_match.group(1).strip()
+
+        if not description:
+            desc_match = re.search(DETAIL_DESCRIPTION_PATTERN, response, re.DOTALL)
+            if desc_match:
+                description = LinkedinOps._clean_html(desc_match.group(1))
+
+        return location, description
+
+    async def get_job_info(self, job: Job):
+        response = await ahttp_with_retry(
+            client=self.ahttp_client,
+            headers=self.headers,
+            url=job.url,
+        )
+        if response:
+            job.location, job.description = self.process_job_info(response)
+
+        return job
+
     async def get_jobs(
               self,
               keywords: str,
@@ -182,70 +239,15 @@ class LinkedinOps:
 
             params["start"] += 10
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
-        return jobs[:n_jobs]
 
-    @staticmethod
-    def process_job_info(response: str) -> Tuple[str | None, str | None]:
-        """
-        Parses the detailed Job page.
-        Priority 1: JSON-LD (Structured Data)
-        Priority 2: HTML Regex (Fallback)
-        """
-        location = None
-        description = None
+        jobs = jobs[:n_jobs]
+        job_info_futures = [asyncio.create_task(self.get_job_info(job=job)) for job in jobs]
 
-        # --- STRATEGY 1: JSON-LD (Most Reliable) ---
-        json_match = re.search(r'<script type="application/ld\+json">\s*({.*?})\s*</script>', response, re.DOTALL)
-        if json_match:
-            try:
-                data = json.loads(json_match.group(1))
-
-
-                if 'jobLocation' in data and 'address' in data['jobLocation']:
-                    addr = data['jobLocation']['address']
-
-                    parts = [
-                        addr.get('addressLocality'),
-                        addr.get('addressRegion'),
-                        addr.get('addressCountry')
-                    ]
-                    location = ", ".join([p for p in parts if p])
-
-
-                if 'description' in data:
-                    description = LinkedinOps._clean_html(html.unescape(data['description']))
-            except:
-                pass # Fallback to regex if JSON fails
-
-        # --- STRATEGY 2: Regex Fallback ---
-        # Only run if we didn't find data in JSON-LD
-        if not location:
-            # re.DOTALL ensures '.' matches newlines
-            loc_match = re.search(DETAIL_LOCATION_PATTERN, response, re.DOTALL)
-            if loc_match:
-                location = loc_match.group(1).strip()
-
-        if not description:
-            desc_match = re.search(DETAIL_DESCRIPTION_PATTERN, response, re.DOTALL)
-            if desc_match:
-                description = LinkedinOps._clean_html(desc_match.group(1))
-
-        return location, description
-
-    async def get_job_info(self, job: Job):
-        response = await ahttp_with_retry(
-            client=self.ahttp_client,
-            headers=self.headers,
-            url=job.url,
-        )
-        if response:
-            job.location, job.description = self.process_job_info(response)
-
-        return job
+        return await asyncio.gather(*job_info_futures, return_exceptions=True)
 
 
 async def main():
-        keywords = "Machine Learning Engineer"
+        keywords = "Machine Learning Engineer, AI Engineer"
         location = "Denmark"
         linkedin_ops = LinkedinOps()
         jobs = await linkedin_ops.get_jobs(
@@ -253,9 +255,6 @@ async def main():
             location=location,
             n_jobs=10,
         )
-        job_info_futures = [asyncio.create_task(linkedin_ops.get_job_info(job=job)) for job in jobs]
-        jobs = await asyncio.gather(*job_info_futures, return_exceptions=True)
-        print()
 
 if __name__ == "__main__":
     asyncio.run(main())

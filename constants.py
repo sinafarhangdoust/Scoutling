@@ -31,5 +31,5 @@ JOBS_EXTRACTION_PATTERN = (
     r'[\s\S]*?'
     r'base-search-card__subtitle"[^>]*?>\s*(?:<a[^>]*?>)?\s*([^<]+)'
 )
-DETAIL_LOCATION_PATTERN = r'topcard__flavor--bullet">\s*([^<]+)\s*</span>'
-DETAIL_DESCRIPTION_PATTERN = r'show-more-less-html__markup[^"]*">\s*([\s\S]*?)\s*</div>'
+DETAIL_LOCATION_PATTERN = r'topcard__flavor--bullet[^>]*>\s*(.*?)\s*</span>'
+DETAIL_DESCRIPTION_PATTERN = r'show-more-less-html__markup[^>]*>\s*([\s\S]*?)\s*</div>'

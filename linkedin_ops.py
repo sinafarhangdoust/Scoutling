@@ -1,9 +1,11 @@
 import asyncio
+import json
 import random
 import logging
 from typing import List, Tuple
 from urllib.parse import quote
 import re
+import html
 
 import httpx
 from pydantic import BaseModel, Field
@@ -182,24 +184,51 @@ class LinkedinOps:
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
         return jobs[:n_jobs]
 
-
-    def process_job_info(self, response: str) -> Tuple[str | None, str | None]:
+    @staticmethod
+    def process_job_info(response: str) -> Tuple[str | None, str | None]:
         """
-        Parses the detailed Job page HTML and returns location and full description.
+        Parses the detailed Job page.
+        Priority 1: JSON-LD (Structured Data)
+        Priority 2: HTML Regex (Fallback)
         """
         location = None
         description = None
 
-        # 1. Extract Location (Take the first match, which is usually the geo location)
-        loc_match = re.search(DETAIL_LOCATION_PATTERN, response)
-        if loc_match:
-            location = loc_match.group(1).strip()
+        # --- STRATEGY 1: JSON-LD (Most Reliable) ---
+        json_match = re.search(r'<script type="application/ld\+json">\s*({.*?})\s*</script>', response, re.DOTALL)
+        if json_match:
+            try:
+                data = json.loads(json_match.group(1))
 
-        # 2. Extract Description
-        desc_match = re.search(DETAIL_DESCRIPTION_PATTERN, response)
-        if desc_match:
-            raw_html = desc_match.group(1)
-            description = self._clean_html(raw_html)
+
+                if 'jobLocation' in data and 'address' in data['jobLocation']:
+                    addr = data['jobLocation']['address']
+
+                    parts = [
+                        addr.get('addressLocality'),
+                        addr.get('addressRegion'),
+                        addr.get('addressCountry')
+                    ]
+                    location = ", ".join([p for p in parts if p])
+
+
+                if 'description' in data:
+                    description = LinkedinOps._clean_html(html.unescape(data['description']))
+            except:
+                pass # Fallback to regex if JSON fails
+
+        # --- STRATEGY 2: Regex Fallback ---
+        # Only run if we didn't find data in JSON-LD
+        if not location:
+            # re.DOTALL ensures '.' matches newlines
+            loc_match = re.search(DETAIL_LOCATION_PATTERN, response, re.DOTALL)
+            if loc_match:
+                location = loc_match.group(1).strip()
+
+        if not description:
+            desc_match = re.search(DETAIL_DESCRIPTION_PATTERN, response, re.DOTALL)
+            if desc_match:
+                description = LinkedinOps._clean_html(desc_match.group(1))
 
         return location, description
 
@@ -210,7 +239,7 @@ class LinkedinOps:
             url=job.url,
         )
         if response:
-            Job.location, job.description = self.process_job_info(response)
+            job.location, job.description = self.process_job_info(response)
 
         return job
 
@@ -226,6 +255,7 @@ async def main():
         )
         job_info_futures = [asyncio.create_task(linkedin_ops.get_job_info(job=job)) for job in jobs]
         jobs = await asyncio.gather(*job_info_futures, return_exceptions=True)
+        print()
 
 if __name__ == "__main__":
     asyncio.run(main())

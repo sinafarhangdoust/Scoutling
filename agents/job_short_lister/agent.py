@@ -1,24 +1,57 @@
 import yaml
 from pathlib import Path
+from typing import Literal, List, Dict
 
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
 from utils import llm_factory
+from linkedin.linkedin_wrapper import Job
+
+MODULE_DIR = Path(__file__).resolve().parent
+
+class JobShortListerOutput(BaseModel):
+    decision: Literal['SHORT_LIST', 'DISCARD'] = Field(
+        description="The decision to either 'SHORT_LIST' or 'DISCARD' the job."
+    )
 
 
 # TODO: read the config from cloud
-def load_config(path: str | Path = "config.yml") -> dict:
+def load_config(path: str = None) -> dict:
+    if not path:
+        path = MODULE_DIR / 'config.yml'
     with open(path, "r") as f:
         return yaml.safe_load(f)
 
 # TODO: read the prompts from cloud
-def load_system_prompt(path: str | Path = "system_prompt.md") -> str:
+def load_system_prompt(path: str = None) -> str:
+    if not path:
+        path = MODULE_DIR / 'system_prompt.md'
     with open(path, "r") as f:
         return f.read()
 
-def load_user_prompt(path: str | Path = "user_prompt.txt") -> str:
+def load_user_prompt(path: str = None) -> str:
+    if not path:
+        path = MODULE_DIR / 'user_prompt.txt'
     with open(path, "r") as f:
         return f.read()
+
+def extract_brief_job_description(description: str) -> str:
+    return '\n\n'.join(description.split('\n\n')[:9])
+
+def build_batch_inputs(jobs: List[Job], user_instructions: str) -> List[Dict]:
+    batch_inputs = []
+    for job in jobs:
+        batch_inputs.append(
+            {
+                'job_title': str(job.title),
+                'job_brief': str(extract_brief_job_description(job.description)),
+                'user_instructions': user_instructions,
+                'job_id': job.id,
+            }
+        )
+
+    return batch_inputs
 
 # TODO: handle input size
 def instantiate_job_short_lister():
@@ -36,4 +69,8 @@ def instantiate_job_short_lister():
         ('human', user_prompt)
     ])
 
-    return llm | prompt_template
+    if agent_config.get("output") == "Structured":
+        structured_llm = llm.with_structured_output(JobShortListerOutput)
+        return prompt_template | structured_llm
+
+    return prompt_template | llm

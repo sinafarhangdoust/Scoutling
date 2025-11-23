@@ -6,5 +6,6 @@ llm:
         minimal
     verbosity: medium
 streaming: false
+output: Structured
 
 

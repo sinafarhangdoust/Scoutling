@@ -2,12 +2,12 @@ import asyncio
 import json
 
 import logging
-from typing import List, Tuple, Literal, Callable
+from typing import List, Tuple, Literal
 import re
 import html
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from constants import (
     COUNTRY2GEOID,
@@ -46,7 +46,6 @@ class LinkedinWrapper:
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5",
             }
-
 
     @staticmethod
     def map_loc2ids(location: str) -> Tuple[int, List[int]]:

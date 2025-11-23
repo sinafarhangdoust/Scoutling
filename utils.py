@@ -23,10 +23,9 @@ async def ahttp_with_retry(
     """
     for attempt in range(retries):
         try:
-            # Random Delay (Human-like behavior)
-            # Sleep between 2 and 5 seconds to respect rate limits
+            # Random Delay (Human-like behavior) Sleep to avoid rate limits
             if random_wait:
-                delay = random.uniform(2, 5)
+                delay = random.uniform(3, 6)
                 logger.info(f"Sleeping for {delay:.2f}s before requesting...")
                 await asyncio.sleep(delay)
 

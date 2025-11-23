@@ -193,7 +193,7 @@ class LinkedinWrapper:
                     location = ", ".join([p for p in parts if p])
 
                 if 'description' in data:
-                    description = LinkedinOps._clean_html(html.unescape(data['description']))
+                    description = LinkedinWrapper._clean_html(html.unescape(data['description']))
             except:
                 pass  # Fallback to regex if JSON fails
 
@@ -208,7 +208,7 @@ class LinkedinWrapper:
         if not description:
             desc_match = re.search(DETAIL_DESCRIPTION_PATTERN, response, re.DOTALL)
             if desc_match:
-                description = LinkedinOps._clean_html(desc_match.group(1))
+                description = LinkedinWrapper._clean_html(desc_match.group(1))
 
         return location, description
 
@@ -283,6 +283,7 @@ class LinkedinWrapper:
             )) for job in jobs
         ]
 
+        # TODO: handle errors
         return await asyncio.gather(*job_info_futures, return_exceptions=True)
 
 
@@ -293,8 +294,9 @@ async def main():
         jobs = await linkedin_wrapper.get_jobs(
             keywords=keywords,
             location=location,
-            n_jobs=10,
+            n_jobs=50,
         )
+        print()
 
 if __name__ == "__main__":
     asyncio.run(main())

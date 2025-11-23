@@ -1,0 +1,10 @@
+llm:
+  model_name: gpt-5-mini
+  kwargs:
+    reasoning:
+      effort:
+        minimal
+    verbosity: medium
+streaming: false
+
+

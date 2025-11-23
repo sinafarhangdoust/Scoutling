@@ -4,6 +4,8 @@ import logging
 from typing import Callable
 
 import httpx
+from langchain_openai import ChatOpenAI
+from langchain_core.language_models import BaseChatModel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -65,3 +67,37 @@ async def async_with_concurrency(
     """
     async with semaphore:
         return await func(**kwargs)
+
+
+def llm_factory(
+        model_name: str,
+        kwargs
+) -> BaseChatModel:
+    """
+    Factory function to create llm model instances
+    :param model_name: the name of the model
+    :param kwargs: additional arguments
+    :return:
+
+    For gpt-5 these are the default values:
+    reasoning=minimal
+    verbosity=medium
+    output_version="responses/v1"
+
+    """
+
+    if model_name.startswith('gpt-5'):
+        if 'reasoning' not in kwargs:
+            kwargs['reasoning'] = {'effort': 'minimal'}
+        if 'verbosity' not in kwargs:
+            kwargs['verbosity'] = 'medium'
+
+        llm = ChatOpenAI(
+            model=model_name,
+            output_version="responses/v1",
+            **kwargs
+        )
+    else:
+        raise ValueError(f'Invalid model name: {model_name}')
+
+    return llm

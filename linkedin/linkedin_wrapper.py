@@ -18,11 +18,10 @@ from constants import (
 )
 from utils import (
     ahttp_with_retry,
-    async_with_concurrency
+    async_with_concurrency,
+    SingletonMeta
 )
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+from config import logger
 
 class Job(BaseModel):
     id: str
@@ -33,19 +32,26 @@ class Job(BaseModel):
     location: str = None
 
 
-class LinkedinWrapper:
+class LinkedinWrapper(metaclass=SingletonMeta):
 
     def __init__(self, headers: dict = None):
-        self.ahttp_client = httpx.AsyncClient()
-        self.base_search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
-        if headers:
-            self.headers = headers
-        else:
-            self.headers = {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.5",
-            }
+        if not hasattr(self, 'initialized'):
+            self.ahttp_client = httpx.AsyncClient()
+            self.base_search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+            if headers:
+                self.headers = headers
+            else:
+                self.headers = {
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.5",
+                }
+            self.initialized = True
+
+    async def close_connection(self):
+        logger.info("Closing httpx client...")
+        await self.ahttp_client.aclose()
+
 
     @staticmethod
     def map_loc2ids(location: str) -> Tuple[int, List[int]]:
@@ -175,7 +181,6 @@ class LinkedinWrapper:
               start: int = 0,
               n_jobs: int = 10,
               sort_by: Literal['R', 'DD'] = 'R',
-              concurrency_limit: int = 3,
     ) -> List[Job]:
         """
         Specific wrapper for the Job Search API.
@@ -186,7 +191,6 @@ class LinkedinWrapper:
         :param start: start index
         :param n_jobs: number of jobs to retrieve
         :param sort_by: sort by relevance or most recent
-        :param concurrency_limit: the number of concurrency
         """
         geo_id, f_pps = self.map_loc2ids(location)
         params = {
@@ -217,6 +221,38 @@ class LinkedinWrapper:
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
 
         jobs = jobs[:n_jobs]
+
+        return jobs
+
+    async def get_jobs_details(
+            self,
+            keywords: str,
+            location: str,
+            time_filter: int = None,
+            start: int = 0,
+            n_jobs: int = 10,
+            sort_by: Literal['R', 'DD'] = 'R',
+            concurrency_limit: int = 3,
+    ) -> List[Job]:
+        """
+        Specific wrapper for the Job Search API.
+
+        :param keywords: keywords to search for
+        :param location: location to look for
+        :param time_filter: time filter to use in seconds
+        :param start: start index
+        :param n_jobs: number of jobs to retrieve
+        :param sort_by: sort by relevance or most recent
+        :param concurrency_limit: the number of concurrency
+        """
+        jobs = await self.get_jobs(
+            keywords=keywords,
+            location=location,
+            time_filter=time_filter,
+            start=start,
+            n_jobs=n_jobs,
+            sort_by=sort_by,
+        )
 
         semaphore = asyncio.Semaphore(concurrency_limit)
 

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from linkedin.linkedin_wrapper import LinkedinWrapper, Job
+from backend.linkedin.linkedin_wrapper import LinkedinWrapper, Job
 from schemas import JobSearchParamsInput
 
 # TODO: implement authentication for the APIs

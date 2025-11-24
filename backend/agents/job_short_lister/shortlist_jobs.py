@@ -2,9 +2,13 @@ import json
 import asyncio
 from typing import List
 
-from agents.job_short_lister.agent import instantiate_job_short_lister, build_batch_inputs, JobShortListerOutput
-from linkedin.linkedin_wrapper import Job
-from config import logger
+from backend.agents.job_short_lister.agent import (
+    instantiate_job_short_lister,
+    build_batch_inputs,
+    JobShortListerOutput
+)
+from backend.linkedin.linkedin_wrapper import Job
+from backend.config import logger
 
 async def shortlist_jobs(
           jobs: List[Job],

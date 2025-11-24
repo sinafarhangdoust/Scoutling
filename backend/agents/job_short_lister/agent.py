@@ -5,8 +5,8 @@ from typing import Literal, List, Dict
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
-from utils import llm_factory
-from linkedin.linkedin_wrapper import Job
+from backend.utils import llm_factory
+from backend.linkedin.linkedin_wrapper import Job
 
 MODULE_DIR = Path(__file__).resolve().parent
 

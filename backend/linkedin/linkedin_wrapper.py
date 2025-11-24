@@ -8,19 +8,19 @@ import html
 import httpx
 from pydantic import BaseModel
 
-from constants import (
+from backend.constants import (
     COUNTRY2GEOID,
     LOC2FPP,
     JOBS_EXTRACTION_PATTERN,
     DETAIL_LOCATION_PATTERN,
     DETAIL_DESCRIPTION_PATTERN,
 )
-from utils import (
+from backend.utils import (
     ahttp_with_retry,
     async_with_concurrency,
     SingletonMeta
 )
-from config import logger
+from backend.config import logger
 
 class Job(BaseModel):
     id: str

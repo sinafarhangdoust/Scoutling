@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from typing import List, Tuple, Literal
+from typing import List, Tuple, Literal, Optional
 import re
 import html
 
@@ -26,9 +26,9 @@ class Job(BaseModel):
     id: str
     title: str
     url: str
-    description: str = None
-    company: str = None
-    location: str = None
+    description: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
 
 
 class LinkedinWrapper(metaclass=SingletonMeta):
@@ -161,11 +161,16 @@ class LinkedinWrapper(metaclass=SingletonMeta):
 
         return location, description
 
-    async def get_job_info(self, job: Job):
+    async def get_job_info(
+              self,
+              job: Job,
+              random_wait: bool =True
+    ):
         response = await ahttp_with_retry(
             client=self.ahttp_client,
             headers=self.headers,
             url=job.url,
+            random_wait=random_wait,
         )
         if response:
             job.location, job.description = self.process_job_info(response)

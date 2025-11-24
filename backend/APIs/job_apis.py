@@ -103,6 +103,18 @@ async def get_jobs_details(params: JobSearchParamsInput = Depends()):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/job/details", response_model=Job, tags=["Jobs"])
+async def get_job_details(params: Job = Depends()):
+
+    linkedin_wrapper = LinkedinWrapper()
+    try:
+        return await linkedin_wrapper.get_job_info(
+            job=params,
+            random_wait=False
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run(

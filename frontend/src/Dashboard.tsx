@@ -11,8 +11,8 @@ export default function Dashboard() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   // Search state
-  const [keywords, setKeywords] = useState('Python');
-  const [location, setLocation] = useState('United States');
+  const [keywords, setKeywords] = useState('');
+  const [location, setLocation] = useState('');
   const [limit, setLimit] = useState(10);
 
   // 1. Fetch the list of jobs

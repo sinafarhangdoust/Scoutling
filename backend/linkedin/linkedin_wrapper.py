@@ -29,6 +29,7 @@ class Job(BaseModel):
     description: Optional[str] = None
     company: Optional[str] = None
     location: Optional[str] = None
+    relevant: Optional[bool] = True
 
 
 class LinkedinWrapper(metaclass=SingletonMeta):

@@ -80,7 +80,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#FDFBF7] text-[#2D3748] overflow-hidden font-sans selection:bg-[#E6AA68] selection:text-white">
+    <div className="flex flex-col h-full bg-[#FDFBF7] text-[#2D3748] overflow-hidden font-sans selection:bg-[#E6AA68] selection:text-white">
 
       <Header
         keywords={keywords} setKeywords={setKeywords}

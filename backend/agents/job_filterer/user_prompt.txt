@@ -1,0 +1,19 @@
+JOB TITLE:
+
+{job_title}
+----------------
+
+FULL JOB DESCRIPTION:
+
+{job_description}
+----------------
+
+USER INSTRUCTIONS:
+
+{user_instructions}
+----------------
+
+USER'S RESUME:
+
+{resume}
+----------------

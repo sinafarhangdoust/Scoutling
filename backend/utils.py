@@ -108,3 +108,6 @@ def llm_factory(
         raise ValueError(f'Invalid model name: {model_name}')
 
     return llm
+
+def run_async(coro):
+    return asyncio.run(coro)

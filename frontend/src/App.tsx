@@ -1,13 +1,19 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
 import Dashboard from './Dashboard';
+import Settings from './Settings';
+import Suggestions from './Suggestions';
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Directly show Dashboard at the root URL */}
-        <Route path="/" element={<Dashboard />} />
-      </Routes>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/suggestions" element={<Suggestions />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </Layout>
     </BrowserRouter>
   );
 }

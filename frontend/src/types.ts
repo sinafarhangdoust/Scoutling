@@ -5,4 +5,6 @@ export interface Job {
   location: string | null;
   url: string;
   description: string | null;
+  relevant?: boolean;
+  relevancy_reason?: string;
 }

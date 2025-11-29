@@ -1,12 +1,13 @@
 import asyncio
 import json
+from datetime import datetime
 
 from typing import List, Tuple, Literal, Optional
 import re
 import html
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.constants import (
     COUNTRY2GEOID,
@@ -23,12 +24,15 @@ from backend.utils import (
 from backend.config import logger
 
 class Job(BaseModel):
-    id: str
+    id: Optional[int] = Field(default=None)
+    linkedin_job_id: str
     title: str
     url: str
     description: Optional[str] = None
     company: Optional[str] = None
     location: Optional[str] = None
+    posted_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class LinkedinWrapper(metaclass=SingletonMeta):
@@ -106,7 +110,7 @@ class LinkedinWrapper(metaclass=SingletonMeta):
 
             results.append(
                 Job(
-                    id=job_id,
+                    linkedin_job_id=job_id,
                     title=clean_title,
                     company=clean_company,
                     url=clean_url,

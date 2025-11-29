@@ -74,3 +74,5 @@ DETAIL_LOCATION_PATTERN = r'topcard__flavor--bullet[^>]*>\s*(.*?)\s*</span>'
 DETAIL_DESCRIPTION_PATTERN = r'show-more-less-html__markup[^>]*>\s*([\s\S]*?)\s*</div>'
 
 USER_BASE_PATH = "../user_settings"
+
+DATABASE_ENDPOINT = "postgresql://scout:scoutpass@localhost:5432/scoutling"

@@ -3,16 +3,21 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import Session, select
 
 from schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper, Job
 from backend.platform.user_settings import save_instructions, save_resume, load_instructions, load_resume
+from backend.database.init_db import init_db, get_session
+from backend.database.models import Job, UserProfile
+from backend.queue.worker import analyze_jobs_task
 
 # TODO: implement authentication for the APIs
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     linkedin_wrapper = LinkedinWrapper()
     yield
     await linkedin_wrapper.close_connection()
@@ -105,6 +110,23 @@ async def get_jobs_details(params: JobSearchParamsInput = Depends()):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/jobs/filter")
+def trigger_analysis(session: Session = Depends(get_session)):
+    # 1. Ensure we have a user profile (create default if missing for single-user mode)
+    user = session.exec(select(UserProfile)).first()
+    if not user:
+        user = UserProfile(resume_text="", filter_instructions="")
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    # 2. Trigger the Celery Task
+    # .delay() is how you send it to the background
+    task = analyze_jobs_task.delay(user.id)
+
+    return {"message": "Analysis started", "task_id": task.id}
 
 @app.get("/job/details", response_model=Job, tags=["Jobs"])
 async def get_job_details(params: Job = Depends()):

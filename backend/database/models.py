@@ -27,6 +27,7 @@ class UserProfile(SQLModel, table=True):
     name: str = Field(default="")
     email: str = Field(index=True)
     job_titles: List[str] = Field(default=[], sa_column=Column(JSON))
+    job_countries: List[str] = Field(default=[], sa_column=Column(JSON))
     # Use sa_column=Column(Text) to ensure it can hold unlimited text
     resume_text: str = Field(default="", sa_column=Column(Text))
 

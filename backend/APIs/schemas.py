@@ -1,4 +1,5 @@
 from typing import Optional, Literal
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -15,3 +16,18 @@ class UserInstructionsInput(BaseModel):
 
 class ResumeInput(BaseModel):
     resume: str = Field(..., description="User's resume")
+
+class Job(BaseModel):
+    id: Optional[int] = Field(default=None)
+    linkedin_job_id: str
+    title: str
+    url: str
+    description: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    posted_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class FilteredJob(Job):
+    relevant: bool
+    relevancy_reason: str

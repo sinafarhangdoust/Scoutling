@@ -5,10 +5,11 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, create_engine
 
-from backend.APIs.schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput
-from backend.linkedin.linkedin_wrapper import LinkedinWrapper, Job
+from backend.APIs.schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput, Job, FilteredJob
+from backend.linkedin.linkedin_wrapper import LinkedinWrapper
 from backend.platform.user_settings import save_instructions, save_resume, load_instructions, load_resume
-from backend.database.models import Job, UserProfile
+from backend.database.models import UserProfile, JobAnalysis
+from backend.database.models import Job as JobTable
 from backend.queue.worker import analyze_jobs_task
 from backend.constants import DATABASE_ENDPOINT
 
@@ -119,7 +120,7 @@ async def get_jobs_details(params: JobSearchParamsInput = Depends()):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/jobs/filter")
+@app.post("/jobs/filter", response_model=dict, tags=["Jobs"])
 def trigger_analysis(db_session: Session = Depends(get_db_session)):
 
     # Assuming that the app is single user
@@ -135,9 +136,39 @@ def trigger_analysis(db_session: Session = Depends(get_db_session)):
 
     return {"message": "Analysis started", "task_id": task.id}
 
-@app.get("/jobs/filter")
+@app.get("/jobs/filter", response_model=List[FilteredJob], tags=["Jobs"])
 def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
-    pass
+    # Assuming that the app is single user
+
+    user = db_session.exec(select(UserProfile).where(UserProfile.email == "scoutling@scoutling.com")).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    statement = (
+        select(JobTable, JobAnalysis)
+        .join(JobAnalysis)
+        .where(JobAnalysis.job_id == JobTable.id)
+        .where(JobAnalysis.user_id == user.id)
+        .order_by(JobAnalysis.analyzed_at.desc())  # Newest analysis first
+    )
+    results = db_session.exec(statement).all()
+    filtered_jobs = []
+    for job, analysis in results:
+        filtered_jobs.append(FilteredJob(
+            id=job.id,
+            linkedin_job_id=job.linkedin_job_id,
+            title=job.title,
+            company=job.company,
+            location=job.location,
+            url=job.url,
+            description=job.description,
+            relevant=analysis.is_relevant,
+            relevancy_reason=analysis.relevancy_reason
+        ))
+
+    return filtered_jobs
 
 @app.get("/job/details", response_model=Job, tags=["Jobs"])
 async def get_job_details(params: Job = Depends()):

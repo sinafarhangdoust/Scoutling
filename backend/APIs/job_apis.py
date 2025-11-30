@@ -7,10 +7,9 @@ from sqlmodel import Session, select, create_engine
 
 from backend.APIs.schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput, Job, FilteredJob
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper
-from backend.platform.user_settings import save_instructions, save_resume, load_instructions, load_resume
 from backend.database.models import UserProfile, JobAnalysis
 from backend.database.models import Job as JobTable
-from backend.database.utils import get_user, insert_resume
+from backend.database.utils import get_user, insert_resume, insert_user_instructions
 from backend.queue.worker import analyze_jobs_task
 from backend.constants import DATABASE_ENDPOINT
 
@@ -184,23 +183,42 @@ async def get_job_details(params: Job = Depends()):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/user/instructions", response_model=str, tags=['User'])
-async def load_user_instructions():
+async def load_user_instructions(db_session: Session = Depends(get_db_session)):
     try:
-        return load_instructions()
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        return user.filter_instructions
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/user/instructions", response_model=None, tags=['User'])
-async def save_user_instructions(params: UserInstructionsInput):
+async def save_user_instructions(
+          params: UserInstructionsInput,
+          db_session: Session = Depends(get_db_session)
+):
     try:
-        save_instructions(instructions=params.instructions)
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        insert_user_instructions(
+            user=user,
+            user_instructions=params.instructions,
+            session=db_session
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/user/resume", response_model=str, tags=['User'])
-async def load_user_resume():
+async def load_user_resume(db_session: Session = Depends(get_db_session)):
     try:
-        return load_resume()
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        return user.resume_text
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

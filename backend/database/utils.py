@@ -80,3 +80,21 @@ def insert_resume(
     session.add(user)
     session.commit()
     logger.info(f"Resume inserted into user profile: {user}")
+
+def insert_user_instructions(
+    user: UserProfile,
+    user_instructions: str,
+    session: Session,
+):
+    """
+    Inserts user instructions into the user profile.
+    :param user: user profile
+    :param user_instructions: the user instructions text
+    :param session: the db session
+    :return:
+    """
+    logger.info(f"Inserting user instructions into user profile: {user}")
+    user.filter_instructions = user_instructions
+    session.add(user)
+    session.commit()
+    logger.info(f"User instructions inserted into user profile: {user}")

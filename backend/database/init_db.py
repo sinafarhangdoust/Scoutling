@@ -14,9 +14,9 @@ users = [
 ]
 
 def get_session():
-    """Dependency for FastAPI Endpoints"""
+    """Dependency db session"""
     with Session(engine) as session:
-        yield session
+        return session
 
 def init_db(override: bool = False):
     """Creates the tables if they don't exist and populates default users."""

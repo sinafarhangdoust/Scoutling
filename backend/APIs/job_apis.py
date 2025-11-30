@@ -125,14 +125,17 @@ def trigger_analysis(db_session: Session = Depends(get_db_session)):
 
     # Assuming that the app is single user
 
-    user = db_session.exec(select(UserProfile).where(UserProfile.email == "scoutling@scoutling.com")).first()
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
     if not user:
         raise HTTPException(
             status_code=404,
             detail="User not found"
         )
 
-    task = analyze_jobs_task.delay(user.id)
+    task = analyze_jobs_task.delay(user)
 
     return {"message": "Analysis started", "task_id": task.id}
 
@@ -140,7 +143,10 @@ def trigger_analysis(db_session: Session = Depends(get_db_session)):
 def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
     # Assuming that the app is single user
 
-    user = db_session.exec(select(UserProfile).where(UserProfile.email == "scoutling@scoutling.com")).first()
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
     if not user:
         raise HTTPException(
             status_code=404,

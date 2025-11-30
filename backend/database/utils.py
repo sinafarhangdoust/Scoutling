@@ -3,10 +3,23 @@ from typing import List
 from sqlmodel import Session, select
 
 from backend.linkedin.linkedin_wrapper import Job as LinkedInJob
-from backend.database.models import Job as JobTable
+from backend.database.models import Job as JobTable, UserProfile
 from backend.config import logger
 
-def insert_jobs(jobs: List[LinkedInJob], session: Session) -> List[LinkedInJob]:
+def get_user(
+    email: str,
+    session:Session
+) -> UserProfile:
+
+    user = session.exec(select(UserProfile).where(UserProfile.email == email)).first()
+    user: UserProfile
+
+    return user
+
+def insert_jobs(
+    jobs: List[LinkedInJob],
+    session: Session,
+) -> List[LinkedInJob]:
     """
     Bulk inserts a list of Job objects into the database.
     Checks for duplicates based on 'linkedin_job_id' and only inserts new records.
@@ -49,3 +62,21 @@ def insert_jobs(jobs: List[LinkedInJob], session: Session) -> List[LinkedInJob]:
 
     # 6. Return the combined list of all jobs (existing + newly created)
     return existing_jobs + new_jobs
+
+def insert_resume(
+    user: UserProfile,
+    resume: str,
+    session: Session,
+):
+    """
+    Inserts a resume into the user profile.
+    :param user: user profile
+    :param resume: the resume text
+    :param session: the db session
+    :return:
+    """
+    logger.info(f"Inserting resume into user profile: {user}")
+    user.resume_text = resume
+    session.add(user)
+    session.commit()
+    logger.info(f"Resume inserted into user profile: {user}")

@@ -10,6 +10,7 @@ from backend.linkedin.linkedin_wrapper import LinkedinWrapper
 from backend.platform.user_settings import save_instructions, save_resume, load_instructions, load_resume
 from backend.database.models import UserProfile, JobAnalysis
 from backend.database.models import Job as JobTable
+from backend.database.utils import get_user, insert_resume
 from backend.queue.worker import analyze_jobs_task
 from backend.constants import DATABASE_ENDPOINT
 
@@ -204,9 +205,20 @@ async def load_user_resume():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/user/resume", response_model=None, tags=['User'])
-async def save_user_resume(params: ResumeInput):
+async def save_user_resume(
+          params: ResumeInput,
+          db_session: Session = Depends(get_db_session)
+):
     try:
-        save_resume(resume=params.resume)
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        insert_resume(
+            user=user,
+            resume=params.resume,
+            session=db_session
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

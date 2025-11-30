@@ -205,11 +205,23 @@ export default function Suggestions() {
                 <>
                     <div className="h-3 bg-[#E6AA68] w-full"></div>
                     <div className="p-8 overflow-y-auto h-full scrollbar-thin scrollbar-thumb-[#2D3748]/20">
-                        <h2 className="text-3xl font-black text-[#2D3748] mb-2">{selectedJob.title}</h2>
-                        <div className="flex gap-2 mb-6">
-                            <span className="font-bold text-[#E6AA68]">{selectedJob.company}</span>
-                            <span className="text-[#2D3748]/30">•</span>
-                            <span className="text-[#2D3748]/60">{selectedJob.location}</span>
+                        <div className="flex justify-between items-start gap-4 mb-6">
+                            <div>
+                                <h2 className="text-3xl font-black text-[#2D3748] mb-2">{selectedJob.title}</h2>
+                                <div className="flex gap-2">
+                                    <span className="font-bold text-[#E6AA68]">{selectedJob.company}</span>
+                                    <span className="text-[#2D3748]/30">•</span>
+                                    <span className="text-[#2D3748]/60">{selectedJob.location}</span>
+                                </div>
+                            </div>
+                            <a
+                                href={selectedJob.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="bg-[#2D3748] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#E6AA68] hover:shadow-lg transition-all transform hover:-translate-y-1 flex items-center gap-2 whitespace-nowrap group"
+                            >
+                                Apply Now <span className="group-hover:translate-x-1 transition-transform">→</span>
+                            </a>
                         </div>
                         <div className="prose max-w-none text-[#2D3748]/80 whitespace-pre-line">
                             {selectedJob.description || "No detailed description available."}

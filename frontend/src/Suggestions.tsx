@@ -36,7 +36,7 @@ export default function Suggestions() {
       // Map backend response to frontend Job type
       // We use 'linkedin_job_id' as 'id' to keep consistency with the Dashboard
       const mappedJobs: Job[] = response.data.map(item => ({
-        id: item.linkedin_job_id,
+        linkedin_job_id: item.linkedin_job_id,
         title: item.title,
         company: item.company,
         location: item.location,
@@ -80,7 +80,7 @@ export default function Suggestions() {
 
                     // Map and update state
                     const mappedJobs: Job[] = newRawJobs.map(item => ({
-                        id: item.linkedin_job_id,
+                        linkedin_job_id: item.linkedin_job_id,
                         title: item.title,
                         company: item.company,
                         location: item.location,
@@ -179,7 +179,7 @@ export default function Suggestions() {
             )}
 
             {relevantJobs.map((job) => (
-                <div key={job.id} className="relative group mb-4">
+                <div key={job.linkedin_job_id} className="relative group mb-4">
                     {/* Relevancy Badge */}
                     <div className={`absolute -right-2 -top-2 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-sm ${job.relevant ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-400 border border-red-100'}`}>
                         {job.relevant ? 'RELEVANT' : 'NOT RELEVANT'}
@@ -187,7 +187,7 @@ export default function Suggestions() {
 
                     <JobCard
                         job={job}
-                        isSelected={selectedJob?.id === job.id}
+                        isSelected={selectedJob?.linkedin_job_id === job.linkedin_job_id}
                         onClick={() => setSelectedJob(job)}
                     />
 

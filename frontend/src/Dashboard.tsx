@@ -70,7 +70,7 @@ export default function Dashboard() {
       const response = await api.get('/job/details', { params: job });
       setSelectedJob(response.data);
       setJobs(prevJobs =>
-        prevJobs.map(j => j.id === job.id ? response.data : j)
+        prevJobs.map(j => j.linkedin_job_id === job.linkedin_job_id ? response.data : j)
       );
     } catch (error) {
       console.error("Error fetching details", error);
@@ -122,9 +122,9 @@ export default function Dashboard() {
 
             {jobs.map((job) => (
               <JobCard
-                key={job.id}
+                key={job.linkedin_job_id}
                 job={job}
-                isSelected={selectedJob?.id === job.id}
+                isSelected={selectedJob?.linkedin_job_id === job.linkedin_job_id}
                 onClick={() => handleJobClick(job)}
               />
             ))}

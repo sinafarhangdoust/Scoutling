@@ -24,6 +24,7 @@ def insert_jobs(
     Bulk inserts a list of Job objects into the database.
     Checks for duplicates based on 'linkedin_job_id' and only inserts new records.
     """
+    logger.info(f"Starting to insert {len(jobs)} jobs")
     if not jobs:
         return []
 

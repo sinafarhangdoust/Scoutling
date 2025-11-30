@@ -15,7 +15,7 @@ from backend.constants import DATABASE_ENDPOINT
 
 # TODO: implement authentication for the APIs
 
-db_engine = create_engine(DATABASE_ENDPOINT, echo=True)
+db_engine = create_engine(DATABASE_ENDPOINT, echo=False)
 
 def get_db_session():
     """Dependency for FastAPI Endpoints"""
@@ -135,7 +135,7 @@ def trigger_analysis(db_session: Session = Depends(get_db_session)):
             detail="User not found"
         )
 
-    task = analyze_jobs_task.delay(user)
+    task = analyze_jobs_task.delay(user.email)
 
     return {"message": "Analysis started", "task_id": task.id}
 

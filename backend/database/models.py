@@ -28,11 +28,9 @@ class UserProfile(SQLModel, table=True):
     email: str = Field(index=True)
     job_titles: List[str] = Field(default=[], sa_column=Column(JSON))
     job_countries: List[str] = Field(default=[], sa_column=Column(JSON))
-    # Use sa_column=Column(Text) to ensure it can hold unlimited text
     resume_text: str = Field(default="", sa_column=Column(Text))
-
-    # Instructions can also get long, so good to use Text here too
     filter_instructions: str = Field(default="", sa_column=Column(Text))
+    last_job_search: Optional[datetime] = Field(default=None)
 
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

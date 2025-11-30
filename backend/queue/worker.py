@@ -1,8 +1,8 @@
-import json
 from typing import List
+from datetime import datetime
 
 from celery import Celery
-from sqlmodel import Session, select
+from sqlmodel import select
 
 from backend.database.init_db import get_session
 from backend.database.models import JobAnalysis, UserProfile, Job
@@ -24,31 +24,42 @@ celery_app = Celery(
 def get_all_jobs(
     linkedin_wrapper: LinkedinWrapper,
     job_titles: List[str],
-    job_countries: List[str]
+    job_countries: List[str],
+    time_filter: int = None
 ) -> List[Job]:
     # TODO: fix this function to properly retrieve all the available jobs
     all_jobs = []
     for title in job_titles:
         for country in job_countries:
             jobs = run_async(
-                linkedin_wrapper.get_jobs_details(
+                linkedin_wrapper.get_all_jobs_details(
                     keywords=title,
                     location=country,
-                    n_jobs=50,
+                    time_filter=time_filter,
                 )
             )
             all_jobs.extend(jobs)
+
+    # convert to correct job format from the DB
+    all_jobs = [Job(**job.model_dump()) for job in all_jobs]
     return all_jobs
 
 
 @celery_app.task(name="analyze_jobs_task")
-def analyze_jobs_task(user: UserProfile):
+def analyze_jobs_task(user_email: str):
     """
     Background task to analyze un-analyzed jobs using LLM.
     """
 
+    logger.info(f"Retrieving user with email {user_email}")
+    session = get_session()
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=session
+    )
     processed_count = 0
     if not user:
+        logger.warning(f"No user with email {user_email}")
         return "User not found"
 
     # TODO: remove this later on as it needs to be saved to the user
@@ -56,26 +67,37 @@ def analyze_jobs_task(user: UserProfile):
     user.job_countries = ["Denmark"]
 
     if not user.job_titles and not user.job_countries:
-        logger.warning(f"no countries and job titles are set for the user {user}")
+        logger.warning(f"no countries and job titles are set for the user {user.name}")
         return f"Analyzed {processed_count} new jobs."
 
 
     linkedin_wrapper = LinkedinWrapper()
-    session = get_session()
-    # TODO: to do this more efficiently we need to add an attribute to the user which tracks when was the last time the looked for jobs and can set the time filter based on that
+
+    # retrieve the jobs since the last job search
+    time_filter = None
+    if user.last_job_search:
+        time_filter = (datetime.utcnow() - user.last_job_search).seconds
+
+    user.last_job_search = datetime.utcnow()
+    session.add(user)
+
     # get all the jobs from Linkedin
-    with open('../jobs.json') as f:
-        all_linkedin_jobs = json.load(f)
-    all_linkedin_jobs = [Job(**job) for job in all_linkedin_jobs]
-    # all_linkedin_jobs = get_all_jobs(
-    #     linkedin_wrapper=linkedin_wrapper,
-    #     job_titles=user.job_titles,
-    #     job_countries=user.job_countries
-    # )
+    logger.info(f"Starting to retrieve jobs from linkedin in the timespan of {time_filter}")
+    all_linkedin_jobs = get_all_jobs(
+        linkedin_wrapper=linkedin_wrapper,
+        job_titles=user.job_titles,
+        job_countries=user.job_countries,
+        time_filter=time_filter
+    )
+    if len(all_linkedin_jobs) == 0:
+        logger.warning(f"no jobs found on linked for {user.name} in timespan of {time_filter} seconds")
+        return f"Analyzed {processed_count} new jobs."
 
     # insert the jobs that just retrieved from Linkedin
+    all_linkedin_jobs = [job for job  in all_linkedin_jobs]
     insert_jobs(jobs=all_linkedin_jobs, session=session)
 
+    logger.info("Starting to retrieve all the jobs from database")
     all_db_jobs = session.exec(select(Job)).all()
 
     jobs_to_process = []
@@ -92,12 +114,14 @@ def analyze_jobs_task(user: UserProfile):
 
         jobs_to_process.append(job)
 
+    logger.info("Starting to shortlist jobs")
     filtered_jobs = run_async(
         shortlist_jobs(
             jobs=jobs_to_process,
             user_instructions=user.filter_instructions,
         )
     )
+    logger.info("Successfully finished shortlisting jobs")
     for job in filtered_jobs:
         # Save Analysis
         analysis = JobAnalysis(
@@ -113,5 +137,4 @@ def analyze_jobs_task(user: UserProfile):
     return f"Analyzed {processed_count} new jobs."
 
 if __name__ == '__main__':
-    user = get_user(email='scoutling@scoutling.com', session=get_session())
-    analyze_jobs_task(user=user)
+    analyze_jobs_task(user_email='scoutling@scoutling.com')

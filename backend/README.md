@@ -9,4 +9,8 @@
     ```
 
 2. Run the job_apis.py
-3. celery -A backend.queue.worker.celery_app worker --loglevel=info
+3. Run celery message broker:
+
+   ```
+   celery -A backend.queue.worker.celery_app worker --loglevel=info
+   ```

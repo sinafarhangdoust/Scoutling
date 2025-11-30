@@ -4,7 +4,7 @@ from backend.database.models import Job, JobAnalysis, UserProfile
 from backend.config import logger
 from backend.constants import DATABASE_ENDPOINT
 
-engine = create_engine(DATABASE_ENDPOINT, echo=True)
+engine = create_engine(DATABASE_ENDPOINT, echo=False)
 
 users = [
     UserProfile(

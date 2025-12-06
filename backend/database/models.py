@@ -1,7 +1,13 @@
 from typing import Optional, List
+from enum import Enum
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy import Text, Column, JSON
+
+class AnalysisStatus(str, Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 # --- 1. The Job (Static Data) ---
@@ -31,6 +37,9 @@ class UserProfile(SQLModel, table=True):
     resume_text: str = Field(default="", sa_column=Column(Text))
     filter_instructions: str = Field(default="", sa_column=Column(Text))
     last_job_search: Optional[datetime] = Field(default=None)
+    analysis_task_id: Optional[str] = Field(default=None)
+    analysis_status: AnalysisStatus = Field(default=AnalysisStatus.COMPLETED)
+    analysis_started_at: Optional[datetime] = None
 
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

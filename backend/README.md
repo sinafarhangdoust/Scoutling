@@ -14,3 +14,9 @@
    ```
    celery -A backend.queue.worker.celery_app worker --loglevel=info
    ```
+
+If needed to purge the queue, run:
+
+   ```
+   celery -A backend.queue.worker.celery_app purge
+   ```

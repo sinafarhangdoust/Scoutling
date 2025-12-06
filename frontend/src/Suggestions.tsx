@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import Header from './components/Header';
+import { useState, useEffect, useRef } from 'react';
 import JobCard from './components/JobCard';
 import type { Job } from './types';
 import api from './api';
@@ -17,15 +16,26 @@ interface FilteredJobResponse {
   relevancy_reason: string;
 }
 
+interface AnalysisStatus {
+  status: 'idle' | 'running' | 'completed' | 'failed';
+  task_id?: string | null;
+  celery_state?: string | null;
+  started_at?: string | null;
+}
+
 export default function Suggestions() {
   const [analyzing, setAnalyzing] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayDismissed, setOverlayDismissed] = useState(false);
+  const overlayDismissedRef = useRef(false);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({ status: 'idle' });
   const [relevantJobs, setRelevantJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-  // Load existing suggestions on mount
+  // Load existing suggestions and status on mount
   useEffect(() => {
     fetchSuggestions();
+    checkStatus();
   }, []);
 
   const fetchSuggestions = async () => {
@@ -52,60 +62,73 @@ export default function Suggestions() {
     }
   };
 
+  const checkStatus = async (): Promise<AnalysisStatus | null> => {
+    try {
+      const response = await api.get<AnalysisStatus>('/jobs/filter/status');
+      setAnalysisStatus(response.data);
+      if (response.data.status === 'running') {
+        setAnalyzing(true);
+        if (!overlayDismissedRef.current) {
+          setShowOverlay(true);
+        }
+      } else {
+        overlayDismissedRef.current = false;
+        setOverlayDismissed(false);
+      }
+      return response.data;
+    } catch (error) {
+      console.error("Failed to load analysis status", error);
+      return null;
+    }
+  };
+
   const runAIFilter = async () => {
     setAnalyzing(true);
     setShowOverlay(true);
-
-    const initialCount = relevantJobs.length;
+    setOverlayDismissed(false);
+    overlayDismissedRef.current = false;
 
     try {
-        // 1. TRIGGER: Call the POST endpoint
-        // This starts the Celery task in the background
         await api.post('/jobs/filter');
 
-        // 2. POLL: Check for results every 3 seconds
         let attempts = 0;
         const maxAttempts = 30; // 90 seconds timeout
 
         const interval = setInterval(async () => {
             attempts++;
             try {
-                // Fetch the list again
-                const response = await api.get<FilteredJobResponse[]>('/jobs/filter');
-                const newRawJobs = response.data;
+                const status = await checkStatus();
+                const stillRunning = status?.status === 'running';
 
-                // Stop if we have more jobs than before or hit timeout
-                if (newRawJobs.length > initialCount || attempts >= maxAttempts) {
+                if (!stillRunning || attempts >= maxAttempts) {
                     clearInterval(interval);
 
-                    // Map and update state
-                    const mappedJobs: Job[] = newRawJobs.map(item => ({
-                        linkedin_job_id: item.linkedin_job_id,
-                        title: item.title,
-                        company: item.company,
-                        location: item.location,
-                        url: item.url,
-                        description: item.description,
-                        relevant: item.relevant,
-                        relevancy_reason: item.relevancy_reason
-                    }));
-
-                    setRelevantJobs(mappedJobs);
+                    await fetchSuggestions();
                     setAnalyzing(false);
+                    setOverlayDismissed(false);
+                    overlayDismissedRef.current = false;
 
-                    // Show success state briefly before closing overlay
-                    setTimeout(() => setShowOverlay(false), 1500);
+                    if (status?.status === 'failed' || attempts >= maxAttempts) {
+                        setShowOverlay(false);
+                        alert("Analysis finished with an error or timed out. Please try again.");
+                    } else {
+                        setTimeout(() => setShowOverlay(false), 1500);
+                    }
                 }
             } catch (err) {
                 console.error("Polling error", err);
             }
         }, 3000);
 
-    } catch (error) {
-        console.error("AI Analysis failed", error);
+    } catch (error: any) {
+        if (error?.response?.status === 409) {
+            alert("Analysis already running. Please wait for it to finish.");
+        } else {
+            console.error("AI Analysis failed", error);
+            alert("Failed to trigger analysis. Ensure Backend & Worker are running.");
+        }
         setAnalyzing(false);
         setShowOverlay(false);
-        alert("Failed to trigger analysis. Ensure Backend & Worker are running.");
     }
   };
 
@@ -133,7 +156,11 @@ export default function Suggestions() {
             </p>
 
             <button
-                onClick={() => setShowOverlay(false)}
+                onClick={() => {
+                  setShowOverlay(false);
+                  setOverlayDismissed(true);
+                  overlayDismissedRef.current = true;
+                }}
                 className="bg-white border-2 border-[#2D3748]/10 text-[#2D3748] px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#E6AA68]/20 hover:border-[#E6AA68] transition-all shadow-sm active:scale-95 flex items-center gap-2"
             >
                 <span>🏃‍♂️</span> {analyzing ? "Let me browse while you work" : "Show me the jobs"}
@@ -146,7 +173,7 @@ export default function Suggestions() {
          <h2 className="text-2xl font-black text-[#2D3748]">AI Suggestions</h2>
          <button
             onClick={runAIFilter}
-            disabled={analyzing}
+            disabled={analyzing || analysisStatus.status === 'running'}
             className={`
                 px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg disabled:opacity-100 disabled:cursor-progress
                 ${analyzing ? 'bg-[#E6AA68]/20 text-[#2D3748] border-2 border-[#E6AA68]' : 'bg-[#2D3748] text-white hover:bg-[#E6AA68]'}

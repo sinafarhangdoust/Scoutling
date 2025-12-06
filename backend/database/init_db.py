@@ -10,13 +10,13 @@ users = [
     UserProfile(
         name="single_user",
         email="scoutling@scoutling.com",
+        filter_instructions="Looking for machine learning engineer, AI Engineer and data science roles. No student or internship roles."
     )
 ]
 
 def get_session():
     """Dependency db session"""
-    with Session(engine) as session:
-        return session
+    return Session(engine)
 
 def init_db(override: bool = False):
     """Creates the tables if they don't exist and populates default users."""

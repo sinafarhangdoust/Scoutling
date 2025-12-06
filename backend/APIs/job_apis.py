@@ -1,16 +1,18 @@
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, create_engine
+from celery.result import AsyncResult
 
 from backend.APIs.schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput, Job, FilteredJob
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper
-from backend.database.models import UserProfile, JobAnalysis
+from backend.database.models import JobAnalysis, AnalysisStatus
 from backend.database.models import Job as JobTable
 from backend.database.utils import get_user, insert_resume, insert_user_instructions
-from backend.queue.worker import analyze_jobs_task
+from backend.queue.worker import analyze_jobs_task, celery_app
 from backend.constants import DATABASE_ENDPOINT
 
 # TODO: implement authentication for the APIs
@@ -123,8 +125,6 @@ async def get_jobs_details(params: JobSearchParamsInput = Depends()):
 @app.post("/jobs/filter", response_model=dict, tags=["Jobs"])
 def trigger_analysis(db_session: Session = Depends(get_db_session)):
 
-    # Assuming that the app is single user
-
     user = get_user(
         email="scoutling@scoutling.com",
         session=db_session
@@ -135,9 +135,49 @@ def trigger_analysis(db_session: Session = Depends(get_db_session)):
             detail="User not found"
         )
 
+    # Prevent duplicate runs if one is already in progress
+    if user.analysis_task_id:
+        existing_task = AsyncResult(user.analysis_task_id, app=celery_app)
+        # blocked states: PENDING, STARTED, RETRY
+        if existing_task.state in {"PENDING", "STARTED", "RETRY"}:
+            raise HTTPException(
+                status_code=409,
+                detail="Analysis already running"
+            )
+
     task = analyze_jobs_task.delay(user.email)
+    user.analysis_task_id = task.id
+    user.analysis_status = AnalysisStatus.IN_PROGRESS
+    user.analysis_started_at = datetime.utcnow()
+    db_session.add(user)
+    db_session.commit()
 
     return {"message": "Analysis started", "task_id": task.id}
+
+
+@app.get("/jobs/filter/status", response_model=dict, tags=["Jobs"])
+def get_analysis_status(db_session: Session = Depends(get_db_session)):
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    celery_state: Optional[str] = None
+    if user.analysis_task_id:
+        result = AsyncResult(user.analysis_task_id, app=celery_app)
+        celery_state = result.state
+
+    return {
+        "status": user.analysis_status,
+        "task_id": user.analysis_task_id,
+        "celery_state": celery_state,
+        "started_at": user.analysis_started_at.isoformat() if user.analysis_started_at else None
+    }
 
 @app.get("/jobs/filter", response_model=List[FilteredJob], tags=["Jobs"])
 def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
@@ -157,7 +197,7 @@ def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
         .join(JobAnalysis)
         .where(JobAnalysis.job_id == JobTable.id)
         .where(JobAnalysis.user_id == user.id)
-        .order_by(JobAnalysis.analyzed_at.desc())  # Newest analysis first
+        .order_by(JobAnalysis.analyzed_at.desc())
     )
     results = db_session.exec(statement).all()
     filtered_jobs = []

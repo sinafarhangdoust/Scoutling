@@ -24,21 +24,11 @@ def get_db_session():
     with Session(db_engine) as session:
         yield session
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    linkedin_wrapper = LinkedinWrapper()
-    try:
-        yield
-    finally:
-        await linkedin_wrapper.close_connection()
-
-
 # --- App Definition ---
 app = FastAPI(
     title="LinkedIn Jobs API",
     description="API to search jobs using the LinkedinWrapper",
     version="0.0.1",
-    lifespan=lifespan
 )
 
 # --- CORS Configuration---

@@ -201,7 +201,8 @@ def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
             url=job.url,
             description=job.description,
             relevant=analysis.is_relevant,
-            relevancy_reason=analysis.relevancy_reason
+            relevancy_reason=analysis.relevancy_reason,
+            applied=analysis.applied,
         ))
 
     return filtered_jobs

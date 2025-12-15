@@ -57,6 +57,7 @@ class JobAnalysis(SQLModel, table=True):
     relevancy_reason: str = Field(default="")
 
     analyzed_at: datetime = Field(default_factory=datetime.utcnow)
+    applied: bool = Field(default=False)
 
     # Relationship back to job
     job: Optional[Job] = Relationship(back_populates="analysis")

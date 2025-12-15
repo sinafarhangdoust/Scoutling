@@ -7,4 +7,5 @@ export interface Job {
   description: string | null;
   relevant?: boolean;
   relevancy_reason?: string;
+  applied?: boolean;
 }

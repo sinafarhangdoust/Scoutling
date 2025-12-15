@@ -14,6 +14,7 @@ interface FilteredJobResponse {
   description: string | null;
   relevant: boolean;
   relevancy_reason: string;
+  applied: boolean;
 }
 
 interface AnalysisStatus {
@@ -26,7 +27,6 @@ interface AnalysisStatus {
 export default function Suggestions() {
   const [analyzing, setAnalyzing] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
-  const [overlayDismissed, setOverlayDismissed] = useState(false);
   const overlayDismissedRef = useRef(false);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({ status: 'idle' });
   const [relevantJobs, setRelevantJobs] = useState<Job[]>([]);
@@ -53,7 +53,8 @@ export default function Suggestions() {
         url: item.url,
         description: item.description,
         relevant: item.relevant,
-        relevancy_reason: item.relevancy_reason
+        relevancy_reason: item.relevancy_reason,
+        applied: item.applied
       }));
 
       setRelevantJobs(mappedJobs);
@@ -73,7 +74,6 @@ export default function Suggestions() {
         }
       } else {
         overlayDismissedRef.current = false;
-        setOverlayDismissed(false);
       }
       return response.data;
     } catch (error) {
@@ -85,7 +85,6 @@ export default function Suggestions() {
   const runAIFilter = async () => {
     setAnalyzing(true);
     setShowOverlay(true);
-    setOverlayDismissed(false);
     overlayDismissedRef.current = false;
 
     try {
@@ -105,7 +104,7 @@ export default function Suggestions() {
 
                     await fetchSuggestions();
                     setAnalyzing(false);
-                    setOverlayDismissed(false);
+        
                     overlayDismissedRef.current = false;
 
                     if (status?.status === 'failed' || attempts >= maxAttempts) {
@@ -120,8 +119,9 @@ export default function Suggestions() {
             }
         }, 3000);
 
-    } catch (error: any) {
-        if (error?.response?.status === 409) {
+    } catch (error: unknown) {
+        const apiError = error as { response?: { status: number } };
+        if (apiError.response?.status === 409) {
             alert("Analysis already running. Please wait for it to finish.");
         } else {
             console.error("AI Analysis failed", error);
@@ -158,7 +158,6 @@ export default function Suggestions() {
             <button
                 onClick={() => {
                   setShowOverlay(false);
-                  setOverlayDismissed(true);
                   overlayDismissedRef.current = true;
                 }}
                 className="bg-white border-2 border-[#2D3748]/10 text-[#2D3748] px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#E6AA68]/20 hover:border-[#E6AA68] transition-all shadow-sm active:scale-95 flex items-center gap-2"

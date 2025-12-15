@@ -31,3 +31,4 @@ class Job(BaseModel):
 class FilteredJob(Job):
     relevant: bool
     relevancy_reason: str
+    applied: bool

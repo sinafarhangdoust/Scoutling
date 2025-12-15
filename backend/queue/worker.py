@@ -10,6 +10,7 @@ from backend.database.utils import insert_jobs, get_user
 from backend.linkedin import LinkedinWrapper
 from backend.utils import run_async
 from backend.agents.job_short_lister.shortlist_jobs import shortlist_jobs
+from backend.agents.job_filterer.filter_jobs import filter_jobs
 from backend.config import logger
 
 # Setup Celery
@@ -131,20 +132,29 @@ def analyze_jobs_task(user_email: str):
             jobs_to_process.append(job)
 
         logger.info("Starting to shortlist jobs")
-        filtered_jobs = run_async(
+        jobs_shortlist = run_async(
             shortlist_jobs(
                 jobs=jobs_to_process,
                 user_instructions=user.filter_instructions,
             )
         )
         logger.info("Successfully finished shortlisting jobs")
-        for job in filtered_jobs:
+        logger.info("Starting to filter jobs")
+        filtered_jobs, relevancy_reasons = run_async(
+            filter_jobs(
+                jobs=jobs_shortlist,
+                user_instructions=user.filter_instructions,
+                resume=user.resume_text,
+            )
+        )
+        logger.info("Successfully finished filtering jobs")
+        for job, relevancy_reason in zip(filtered_jobs, relevancy_reasons):
             # Save Analysis
             analysis = JobAnalysis(
                 job_id=job.id,
                 user_id=user.id,
                 is_relevant=True,
-                relevancy_reason="Potentially relevant"
+                relevancy_reason=relevancy_reason,
             )
             session.add(analysis)
             processed_count += 1

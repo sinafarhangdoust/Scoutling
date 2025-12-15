@@ -1,17 +1,28 @@
 from typing import List, Optional
 from datetime import datetime
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, create_engine
 from celery.result import AsyncResult
 
-from backend.APIs.schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput, Job, FilteredJob
+from backend.APIs.schemas import (
+    JobSearchParamsInput,
+    UserInstructionsInput,
+    ResumeInput,
+    Job,
+    FilteredJob,
+    JobSearchCountriesInput,
+)
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper
 from backend.database.models import JobAnalysis, AnalysisStatus
 from backend.database.models import Job as JobTable
-from backend.database.utils import get_user, insert_resume, insert_user_instructions
+from backend.database.utils import (
+    get_user,
+    insert_resume,
+    insert_user_instructions,
+    insert_user_job_search_countries,
+)
 from backend.queue.worker import analyze_jobs_task, celery_app
 from backend.constants import DATABASE_ENDPOINT
 
@@ -277,6 +288,34 @@ async def save_user_resume(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/user/job_search_countries", response_model=List[str], tags=['User'])
+async def load_user_job_countries(db_session: Session = Depends(get_db_session)):
+    try:
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        return user.job_countries
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/user/job_search_countries", response_model=None, tags=['User'])
+async def save_user_job_search_countries(
+          params: JobSearchCountriesInput,
+          db_session: Session = Depends(get_db_session)
+):
+    try:
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        insert_user_job_search_countries(
+            user=user,
+            job_search_countries=params.job_search_countries,
+            session=db_session
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == '__main__':
     import uvicorn

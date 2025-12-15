@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 from backend.linkedin.linkedin_wrapper import Job as LinkedInJob
 from backend.database.models import Job as JobTable, UserProfile
 from backend.config import logger
+from backend.constants import COUNTRY2GEOID
 
 def get_user(
     email: str,
@@ -99,3 +100,32 @@ def insert_user_instructions(
     session.add(user)
     session.commit()
     logger.info(f"User instructions inserted into user profile: {user}")
+
+def insert_user_job_search_countries(
+    user: UserProfile,
+    job_search_countries: List[str],
+    session: Session,
+):
+    """
+    Inserts user instructions into the user profile.
+    :param user: user profile
+    :param job_search_countries: countries for the job search
+    :param session: the db session
+    :return:
+    """
+
+    current_countries = list(user.job_countries)
+    logger.info(f"Inserting job search countries into user profile: {user}")
+    for country in job_search_countries:
+        if country not in COUNTRY2GEOID.keys():
+            logger.warning(f"Country {country} is not supported, skipping.")
+            continue
+        if country in current_countries:
+            logger.warning(f"Country {country} is already being used, skipping.")
+            continue
+        current_countries.append(country)
+    user.job_countries = current_countries
+
+    session.add(user)
+    session.commit()
+    logger.info(f"Job search countries inserted into user profile: {user}")

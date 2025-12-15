@@ -1,4 +1,4 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -16,6 +16,10 @@ class UserInstructionsInput(BaseModel):
 
 class ResumeInput(BaseModel):
     resume: str = Field(..., description="User's resume")
+
+class JobSearchCountriesInput(BaseModel):
+    job_search_countries: List[str] = Field(..., description="Job search countries")
+
 
 class Job(BaseModel):
     id: Optional[int] = Field(default=None)

@@ -107,28 +107,29 @@ def insert_user_job_search_countries(
     session: Session,
 ):
     """
-    Inserts user job search countries into the user profile.
+    Updates user job search countries in the user profile.
+    Replaces the existing list with the new provided list.
     :param user: user profile
     :param job_search_countries: countries for the job search
     :param session: the db session
     :return:
     """
-
-    current_countries = list(user.job_countries)
-    logger.info(f"Inserting job search countries into user profile: {user}")
+    valid_countries = []
+    logger.info(f"Updating job search countries for user: {user.email}")
+    
     for country in job_search_countries:
         if country not in COUNTRY2GEOID.keys():
-            logger.warning(f"Country {country} is not supported, skipping.")
+            logger.warning(f"Country '{country}' is not supported, skipping.")
             continue
-        if country in current_countries:
-            logger.warning(f"Country {country} is already being used, skipping.")
-            continue
-        current_countries.append(country)
-    user.job_countries = current_countries
+        valid_countries.append(country)
+    
+    # Overwrite with the new valid list
+    user.job_countries = valid_countries
 
     session.add(user)
     session.commit()
-    logger.info(f"Job search countries inserted into user profile: {user}")
+    session.refresh(user)
+    logger.info(f"Job search countries updated for user: {user.email}")
 
 def insert_user_job_search_titles(
     user: UserProfile,
@@ -136,22 +137,19 @@ def insert_user_job_search_titles(
     session: Session,
 ):
     """
-    Inserts user job search titles into the user profile.
+    Updates user job search titles in the user profile.
+    Replaces the existing list with the new provided list.
     :param user: user profile
-    :param job_search_titles: countries for the job search
+    :param job_search_titles: titles for the job search
     :param session: the db session
     :return:
     """
-
-    current_titles = list(user.job_titles)
-    logger.info(f"Inserting job search titles into user profile: {user}")
-    for title in job_search_titles:
-        if title in current_titles:
-            logger.warning(f"Title {title} is already being used, skipping.")
-            continue
-        current_titles.append(title)
-    user.job_titles = current_titles
+    logger.info(f"Updating job search titles for user: {user.email}")
+    
+    # Overwrite with the new list
+    user.job_titles = job_search_titles
 
     session.add(user)
     session.commit()
-    logger.info(f"Job search countries inserted into user profile: {user}")
+    session.refresh(user)
+    logger.info(f"Job search titles updated for user: {user.email}")

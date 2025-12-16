@@ -38,3 +38,7 @@ class FilteredJob(Job):
     relevant: bool
     relevancy_reason: str
     applied: bool
+
+class JobAppliedInput(BaseModel):
+    linkedin_job_id: str = Field(..., description="The LinkedIn Job ID")
+    applied: bool = Field(..., description="The applied status")

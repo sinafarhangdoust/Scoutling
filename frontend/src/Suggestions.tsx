@@ -37,12 +37,18 @@ export default function Suggestions() {
   // Validation Modal State
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [missingItems, setMissingItems] = useState<string[]>([]);
+  const [showAppliedPrompt, setShowAppliedPrompt] = useState(false);
 
   // Load existing suggestions and status on mount
   useEffect(() => {
     fetchSuggestions();
     checkStatus();
   }, []);
+
+  // Reset prompt when job changes
+  useEffect(() => {
+    setShowAppliedPrompt(false);
+  }, [selectedJob?.linkedin_job_id]);
 
   const fetchSuggestions = async () => {
     try {
@@ -66,6 +72,34 @@ export default function Suggestions() {
       setRelevantJobs(mappedJobs);
     } catch (error) {
       console.error("Failed to load suggestions", error);
+    }
+  };
+
+  const handleApplyClick = (e: React.MouseEvent, url: string) => {
+    e.preventDefault();
+    window.open(url, '_blank');
+    if (!selectedJob?.applied) {
+        setShowAppliedPrompt(true);
+    }
+  };
+
+  const confirmApplied = async (applied: boolean) => {
+    setShowAppliedPrompt(false);
+    if (!selectedJob || !applied) return;
+
+    try {
+        await api.post('/job/applied', {
+            linkedin_job_id: selectedJob.linkedin_job_id,
+            applied: true
+        });
+
+        // Update local state
+        const updatedJob = { ...selectedJob, applied: true };
+        setSelectedJob(updatedJob);
+        setRelevantJobs(prev => prev.map(j => j.linkedin_job_id === updatedJob.linkedin_job_id ? updatedJob : j));
+
+    } catch (error) {
+        console.error("Failed to update applied status", error);
     }
   };
 
@@ -316,6 +350,31 @@ export default function Suggestions() {
                 <>
                     <div className="h-3 bg-[#E6AA68] w-full"></div>
                     <div className="p-8 overflow-y-auto h-full scrollbar-thin scrollbar-thumb-[#2D3748]/20">
+                        
+                        {/* Applied Prompt */}
+                        {showAppliedPrompt && (
+                            <div className="bg-[#E6AA68]/20 p-4 rounded-xl mb-6 flex items-center justify-between animate-in fade-in slide-in-from-top-4 border border-[#E6AA68]">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xl">📝</span>
+                                    <span className="font-bold text-[#2D3748]">Have you applied to this job?</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => confirmApplied(true)} 
+                                        className="px-6 py-2 bg-[#2D3748] text-white rounded-lg text-sm font-bold hover:bg-green-600 shadow-md transition-all active:scale-95"
+                                    >
+                                        Yes
+                                    </button>
+                                    <button 
+                                        onClick={() => confirmApplied(false)} 
+                                        className="px-6 py-2 bg-white text-[#2D3748] border border-[#2D3748]/10 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors"
+                                    >
+                                        No
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex justify-between items-start gap-4 mb-6">
                             <div>
                                 <h2 className="text-3xl font-black text-[#2D3748] mb-2">{selectedJob.title}</h2>
@@ -323,16 +382,20 @@ export default function Suggestions() {
                                     <span className="font-bold text-[#E6AA68]">{selectedJob.company}</span>
                                     <span className="text-[#2D3748]/30">•</span>
                                     <span className="text-[#2D3748]/60">{selectedJob.location}</span>
+                                    {selectedJob.applied && (
+                                        <>
+                                            <span className="text-[#2D3748]/30">•</span>
+                                            <span className="text-green-600 font-bold flex items-center gap-1">✅ Applied</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
-                            <a
-                                href={selectedJob.url}
-                                target="_blank"
-                                rel="noreferrer"
+                            <button
+                                onClick={(e) => handleApplyClick(e, selectedJob.url)}
                                 className="bg-[#2D3748] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#E6AA68] hover:shadow-lg transition-all transform hover:-translate-y-1 flex items-center gap-2 whitespace-nowrap group"
                             >
                                 Apply Now <span className="group-hover:translate-x-1 transition-transform">→</span>
-                            </a>
+                            </button>
                         </div>
                         <div className="prose max-w-none text-[#2D3748]/80 whitespace-pre-line">
                             {selectedJob.description || "No detailed description available."}

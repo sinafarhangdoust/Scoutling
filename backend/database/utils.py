@@ -3,7 +3,7 @@ from typing import List
 from sqlmodel import Session, select
 
 from backend.linkedin.linkedin_wrapper import Job as LinkedInJob
-from backend.database.models import Job as JobTable, UserProfile
+from backend.database.models import Job as JobTable, UserProfile, JobAnalysis
 from backend.config import logger
 from backend.constants import COUNTRY2GEOID
 
@@ -153,3 +153,35 @@ def insert_user_job_search_titles(
     session.commit()
     session.refresh(user)
     logger.info(f"Job search titles updated for user: {user.email}")
+
+def update_job_applied_status(
+    user: UserProfile,
+    linkedin_job_id: str,
+    applied: bool,
+    session: Session,
+):
+    """
+    Updates the applied status for a specific job and user.
+    """
+    logger.info(f"Updating applied status for job {linkedin_job_id} to {applied} for user {user.email}")
+    
+    # Find the job ID first
+    job = session.exec(select(JobTable).where(JobTable.linkedin_job_id == linkedin_job_id)).first()
+    if not job:
+        logger.warning(f"Job with linkedin_job_id {linkedin_job_id} not found.")
+        return
+
+    # Find the analysis record
+    statement = select(JobAnalysis).where(
+        JobAnalysis.job_id == job.id,
+        JobAnalysis.user_id == user.id
+    )
+    analysis = session.exec(statement).first()
+
+    if analysis:
+        analysis.applied = applied
+        session.add(analysis)
+        session.commit()
+        logger.info("Applied status updated.")
+    else:
+        logger.warning("JobAnalysis record not found for this user/job combination.")

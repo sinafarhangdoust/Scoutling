@@ -13,7 +13,8 @@ from backend.APIs.schemas import (
     Job,
     FilteredJob,
     JobSearchCountriesInput,
-    JobSearchTitlesInput
+    JobSearchTitlesInput,
+    JobAppliedInput
 )
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper
 from backend.database.models import JobAnalysis, AnalysisStatus
@@ -24,6 +25,7 @@ from backend.database.utils import (
     insert_user_instructions,
     insert_user_job_search_countries,
     insert_user_job_search_titles,
+    update_job_applied_status,
 )
 from backend.queue.worker import analyze_jobs_task, celery_app
 from backend.constants import DATABASE_ENDPOINT
@@ -231,6 +233,28 @@ async def get_job_details(params: Job = Depends()):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/job/applied", response_model=None, tags=["Jobs"])
+def mark_job_applied(
+    params: JobAppliedInput,
+    db_session: Session = Depends(get_db_session)
+):
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    
+    update_job_applied_status(
+        user=user,
+        linkedin_job_id=params.linkedin_job_id,
+        applied=params.applied,
+        session=db_session
+    )
 
 @app.get("/user/instructions", response_model=str, tags=['User'])
 async def load_user_instructions(db_session: Session = Depends(get_db_session)):

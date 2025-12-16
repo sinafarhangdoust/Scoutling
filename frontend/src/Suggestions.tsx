@@ -19,7 +19,7 @@ interface FilteredJobResponse {
 }
 
 interface AnalysisStatus {
-  status: 'idle' | 'running' | 'completed' | 'failed';
+  status: 'idle' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
   task_id?: string | null;
   celery_state?: string | null;
   started_at?: string | null;
@@ -42,7 +42,14 @@ export default function Suggestions() {
   // Load existing suggestions and status on mount
   useEffect(() => {
     fetchSuggestions();
-    checkStatus();
+    
+    // Initial status check
+    api.get<AnalysisStatus>('/jobs/filter/status').then(response => {
+        setAnalysisStatus(response.data);
+        if (response.data.status === 'IN_PROGRESS') {
+            startPolling();
+        }
+    }).catch(err => console.error(err));
   }, []);
 
   // Reset prompt when job changes
@@ -107,19 +114,51 @@ export default function Suggestions() {
     try {
       const response = await api.get<AnalysisStatus>('/jobs/filter/status');
       setAnalysisStatus(response.data);
-      if (response.data.status === 'running') {
-        setAnalyzing(true);
-        if (!overlayDismissedRef.current) {
-          setShowOverlay(true);
-        }
-      } else {
-        overlayDismissedRef.current = false;
-      }
       return response.data;
     } catch (error) {
       console.error("Failed to load analysis status", error);
       return null;
     }
+  };
+
+  const startPolling = () => {
+      setAnalyzing(true);
+      
+      // If we are starting polling and didn't dismiss overlay, show it
+      if (!overlayDismissedRef.current) {
+          setShowOverlay(true);
+      }
+
+      let attempts = 0;
+      const maxAttempts = 200; // ~10 minutes max polling
+
+      const interval = setInterval(async () => {
+          attempts++;
+          try {
+              const status = await checkStatus();
+              const isRunning = status?.status === 'IN_PROGRESS';
+
+              if (!isRunning || attempts >= maxAttempts) {
+                  clearInterval(interval);
+                  setAnalyzing(false);
+
+                  // If completed (or failed), refresh the list
+                  await fetchSuggestions();
+
+                  // Handle overlay logic
+                  overlayDismissedRef.current = false;
+
+                  if (status?.status === 'FAILED' || attempts >= maxAttempts) {
+                      setShowOverlay(false);
+                  } else {
+                      // Success case: allow overlay to show "Analysis Complete" for a moment
+                      setTimeout(() => setShowOverlay(false), 2000);
+                  }
+              }
+          } catch (err) {
+              console.error("Polling error", err);
+          }
+      }, 3000);
   };
 
   const runAIFilter = async () => {
@@ -151,52 +190,25 @@ export default function Suggestions() {
         return;
     }
 
-    setAnalyzing(true);
-    setShowOverlay(true);
+    // Reset overlay flag so it shows up for new run
     overlayDismissedRef.current = false;
+    setShowOverlay(true); 
+    setAnalyzing(true);
 
     try {
         await api.post('/jobs/filter');
-
-        let attempts = 0;
-        const maxAttempts = 30; // 90 seconds timeout
-
-        const interval = setInterval(async () => {
-            attempts++;
-            try {
-                const status = await checkStatus();
-                const stillRunning = status?.status === 'running';
-
-                if (!stillRunning || attempts >= maxAttempts) {
-                    clearInterval(interval);
-
-                    await fetchSuggestions();
-                    setAnalyzing(false);
-        
-                    overlayDismissedRef.current = false;
-
-                    if (status?.status === 'failed' || attempts >= maxAttempts) {
-                        setShowOverlay(false);
-                        alert("Analysis finished with an error or timed out. Please try again.");
-                    } else {
-                        setTimeout(() => setShowOverlay(false), 1500);
-                    }
-                }
-            } catch (err) {
-                console.error("Polling error", err);
-            }
-        }, 3000);
-
+        startPolling();
     } catch (error: unknown) {
         const apiError = error as { response?: { status: number } };
         if (apiError.response?.status === 409) {
-            alert("Analysis already running. Please wait for it to finish.");
+            // Already running, just attach poller
+            startPolling();
         } else {
             console.error("AI Analysis failed", error);
             alert("Failed to trigger analysis. Ensure Backend & Worker are running.");
+            setAnalyzing(false);
+            setShowOverlay(false);
         }
-        setAnalyzing(false);
-        setShowOverlay(false);
     }
   };
 
@@ -291,7 +303,7 @@ export default function Suggestions() {
          <h2 className="text-2xl font-black text-[#2D3748]">AI Suggestions</h2>
          <button
             onClick={runAIFilter}
-            disabled={analyzing || analysisStatus.status === 'running'}
+            disabled={analyzing || analysisStatus.status === 'IN_PROGRESS'}
             className={`
                 px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg disabled:opacity-100 disabled:cursor-progress
                 ${analyzing ? 'bg-[#E6AA68]/20 text-[#2D3748] border-2 border-[#E6AA68]' : 'bg-[#2D3748] text-white hover:bg-[#E6AA68]'}

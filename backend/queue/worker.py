@@ -50,7 +50,7 @@ def get_all_jobs(
 async def async_analysis_pipeline(user, jobs_to_process):
     logger.info("Starting to shortlist jobs")
     jobs_shortlist = await shortlist_jobs(
-        jobs=jobs_to_process[:10],
+        jobs=jobs_to_process,
         user_instructions=user.filter_instructions,
     )
     logger.info("Successfully finished shortlisting jobs")

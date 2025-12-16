@@ -20,6 +20,8 @@ class ResumeInput(BaseModel):
 class JobSearchCountriesInput(BaseModel):
     job_search_countries: List[str] = Field(..., description="Job search countries")
 
+class JobSearchTitlesInput(BaseModel):
+    job_search_titles: List[str] = Field(..., description="Job search titles")
 
 class Job(BaseModel):
     id: Optional[int] = Field(default=None)

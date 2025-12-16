@@ -107,7 +107,7 @@ def insert_user_job_search_countries(
     session: Session,
 ):
     """
-    Inserts user instructions into the user profile.
+    Inserts user job search countries into the user profile.
     :param user: user profile
     :param job_search_countries: countries for the job search
     :param session: the db session
@@ -125,6 +125,32 @@ def insert_user_job_search_countries(
             continue
         current_countries.append(country)
     user.job_countries = current_countries
+
+    session.add(user)
+    session.commit()
+    logger.info(f"Job search countries inserted into user profile: {user}")
+
+def insert_user_job_search_titles(
+    user: UserProfile,
+    job_search_titles: List[str],
+    session: Session,
+):
+    """
+    Inserts user job search titles into the user profile.
+    :param user: user profile
+    :param job_search_titles: countries for the job search
+    :param session: the db session
+    :return:
+    """
+
+    current_titles = list(user.job_titles)
+    logger.info(f"Inserting job search titles into user profile: {user}")
+    for title in job_search_titles:
+        if title in current_titles:
+            logger.warning(f"Title {title} is already being used, skipping.")
+            continue
+        current_titles.append(title)
+    user.job_titles = current_titles
 
     session.add(user)
     session.commit()

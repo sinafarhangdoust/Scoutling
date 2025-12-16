@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import JobCard from './components/JobCard';
 import type { Job } from './types';
 import api from './api';
@@ -25,12 +26,17 @@ interface AnalysisStatus {
 }
 
 export default function Suggestions() {
+  const navigate = useNavigate();
   const [analyzing, setAnalyzing] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const overlayDismissedRef = useRef(false);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>({ status: 'idle' });
   const [relevantJobs, setRelevantJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+
+  // Validation Modal State
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [missingItems, setMissingItems] = useState<string[]>([]);
 
   // Load existing suggestions and status on mount
   useEffect(() => {
@@ -83,6 +89,34 @@ export default function Suggestions() {
   };
 
   const runAIFilter = async () => {
+    // 1. Validation: Ensure user settings are complete
+    try {
+        const [resumeRes, countriesRes, titlesRes] = await Promise.all([
+            api.get<string>('/user/resume'),
+            api.get<string[]>('/user/job_search_countries'),
+            api.get<string[]>('/user/job_search_titles')
+        ]);
+
+        const resume = resumeRes.data;
+        const countries = countriesRes.data;
+        const titles = titlesRes.data;
+
+        const missing = [];
+        if (!resume || resume.trim().length < 10) missing.push("Resume");
+        if (!countries || countries.length === 0) missing.push("Target Countries");
+        if (!titles || titles.length === 0) missing.push("Job Titles");
+
+        if (missing.length > 0) {
+            setMissingItems(missing);
+            setShowValidationModal(true);
+            return;
+        }
+    } catch (error) {
+        console.error("Failed to validate settings", error);
+        alert("Could not verify your settings. Please try again.");
+        return;
+    }
+
     setAnalyzing(true);
     setShowOverlay(true);
     overlayDismissedRef.current = false;
@@ -134,6 +168,57 @@ export default function Suggestions() {
 
   return (
     <div className="flex flex-col h-full relative">
+
+      {/* --- VALIDATION MODAL --- */}
+      {showValidationModal && (
+        <div className="fixed inset-0 z-[60] bg-[#2D3748]/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl border-2 border-[#E6AA68]/20 p-8 transform transition-all scale-100">
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-16 h-16 bg-[#FFF4E6] rounded-full flex items-center justify-center mb-6 text-3xl">
+                        ⚙️
+                    </div>
+                    <h3 className="text-2xl font-black text-[#2D3748] mb-2">Profile Incomplete</h3>
+                    <p className="text-[#2D3748]/60 mb-6 leading-relaxed">
+                        To find the best matches, the AI agent needs a bit more info from you.
+                    </p>
+                    
+                    <div className="w-full bg-[#FDFBF7] border border-[#2D3748]/10 rounded-xl p-4 mb-4 text-left">
+                        <p className="text-xs font-bold text-[#2D3748]/40 uppercase tracking-wider mb-3">Missing Items</p>
+                        <ul className="space-y-2">
+                            {missingItems.map((item, idx) => (
+                                <li key={idx} className="flex items-center gap-3 text-[#2D3748] font-bold">
+                                    <span className="text-red-500 text-lg">•</span>
+                                    {item}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-xl text-left mb-6 w-full">
+                        <span className="text-xl">💡</span>
+                        <p className="text-xs font-medium text-blue-800 leading-relaxed">
+                            <span className="font-bold">Pro Tip:</span> While optional, adding specific <strong>Agent Instructions</strong> is highly recommended for the best results.
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3 w-full">
+                        <button
+                            onClick={() => setShowValidationModal(false)}
+                            className="flex-1 py-3 px-4 rounded-xl font-bold text-[#2D3748] hover:bg-[#F3F4F6] transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => navigate('/settings')}
+                            className="flex-1 py-3 px-4 rounded-xl font-bold bg-[#2D3748] text-white hover:bg-[#E6AA68] hover:shadow-lg transition-all"
+                        >
+                            Go to Settings →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* --- FULL SCREEN LOADER --- */}
       {showOverlay && (

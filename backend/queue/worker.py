@@ -1,5 +1,7 @@
+import json
 from typing import List
 from datetime import datetime
+from pathlib import Path
 
 from celery import Celery
 from sqlmodel import select
@@ -28,7 +30,6 @@ def get_all_jobs(
     job_countries: List[str],
     time_filter: int = None
 ) -> List[Job]:
-    # TODO: fix this function to properly retrieve all the available jobs
     all_jobs = []
     for title in job_titles:
         for country in job_countries:
@@ -45,6 +46,21 @@ def get_all_jobs(
     all_jobs = [Job(**job.model_dump()) for job in all_jobs]
     return all_jobs
 
+
+async def async_analysis_pipeline(user, jobs_to_process):
+    logger.info("Starting to shortlist jobs")
+    jobs_shortlist = await shortlist_jobs(
+        jobs=jobs_to_process[:10],
+        user_instructions=user.filter_instructions,
+    )
+    logger.info("Successfully finished shortlisting jobs")
+    
+    logger.info("Starting to filter jobs")
+    return await filter_jobs(
+        jobs=jobs_shortlist,
+        user_instructions=user.filter_instructions,
+        resume=user.resume_text,
+    )
 
 @celery_app.task(name="analyze_jobs_task")
 def analyze_jobs_task(user_email: str):
@@ -70,10 +86,6 @@ def analyze_jobs_task(user_email: str):
             user.analysis_started_at = datetime.utcnow()
         session.add(user)
         session.commit()
-
-        # TODO: remove this later on as it needs to be saved to the user
-        user.job_titles = ["Machine Learning Engineer"]
-        user.job_countries = ["Denmark"]
 
         if not user.job_titles and not user.job_countries:
             logger.warning(f"no countries and job titles are set for the user {user.name}")
@@ -131,22 +143,11 @@ def analyze_jobs_task(user_email: str):
 
             jobs_to_process.append(job)
 
-        logger.info("Starting to shortlist jobs")
-        jobs_shortlist = run_async(
-            shortlist_jobs(
-                jobs=jobs_to_process,
-                user_instructions=user.filter_instructions,
-            )
-        )
-        logger.info("Successfully finished shortlisting jobs")
-        logger.info("Starting to filter jobs")
+        # Run both steps in a single async event loop to prevent connection issues
         filtered_jobs, relevancy_reasons = run_async(
-            filter_jobs(
-                jobs=jobs_shortlist,
-                user_instructions=user.filter_instructions,
-                resume=user.resume_text,
-            )
+            async_analysis_pipeline(user, jobs_to_process)
         )
+        
         logger.info("Successfully finished filtering jobs")
         for job, relevancy_reason in zip(filtered_jobs, relevancy_reasons):
             # Save Analysis

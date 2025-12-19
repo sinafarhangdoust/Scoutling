@@ -3,14 +3,29 @@ from typing import List
 from sqlmodel import Session, select
 
 from backend.linkedin.linkedin_wrapper import Job as LinkedInJob
-from backend.database.models import Job as JobTable
+from backend.database.models import Job as JobTable, UserProfile, JobAnalysis
 from backend.config import logger
+from backend.constants import COUNTRY2GEOID
 
-def insert_jobs(jobs: List[LinkedInJob], session: Session) -> List[LinkedInJob]:
+def get_user(
+    email: str,
+    session:Session
+) -> UserProfile:
+
+    user = session.exec(select(UserProfile).where(UserProfile.email == email)).first()
+    user: UserProfile
+
+    return user
+
+def insert_jobs(
+    jobs: List[LinkedInJob],
+    session: Session,
+) -> List[LinkedInJob]:
     """
     Bulk inserts a list of Job objects into the database.
     Checks for duplicates based on 'linkedin_job_id' and only inserts new records.
     """
+    logger.info(f"Starting to insert {len(jobs)} jobs")
     if not jobs:
         return []
 
@@ -49,3 +64,124 @@ def insert_jobs(jobs: List[LinkedInJob], session: Session) -> List[LinkedInJob]:
 
     # 6. Return the combined list of all jobs (existing + newly created)
     return existing_jobs + new_jobs
+
+def insert_resume(
+    user: UserProfile,
+    resume: str,
+    session: Session,
+):
+    """
+    Inserts a resume into the user profile.
+    :param user: user profile
+    :param resume: the resume text
+    :param session: the db session
+    :return:
+    """
+    logger.info(f"Inserting resume into user profile: {user}")
+    user.resume_text = resume
+    session.add(user)
+    session.commit()
+    logger.info(f"Resume inserted into user profile: {user}")
+
+def insert_user_instructions(
+    user: UserProfile,
+    user_instructions: str,
+    session: Session,
+):
+    """
+    Inserts user instructions into the user profile.
+    :param user: user profile
+    :param user_instructions: the user instructions text
+    :param session: the db session
+    :return:
+    """
+    logger.info(f"Inserting user instructions into user profile: {user}")
+    user.filter_instructions = user_instructions
+    session.add(user)
+    session.commit()
+    logger.info(f"User instructions inserted into user profile: {user}")
+
+def insert_user_job_search_countries(
+    user: UserProfile,
+    job_search_countries: List[str],
+    session: Session,
+):
+    """
+    Updates user job search countries in the user profile.
+    Replaces the existing list with the new provided list.
+    :param user: user profile
+    :param job_search_countries: countries for the job search
+    :param session: the db session
+    :return:
+    """
+    valid_countries = []
+    logger.info(f"Updating job search countries for user: {user.email}")
+    
+    for country in job_search_countries:
+        if country not in COUNTRY2GEOID.keys():
+            logger.warning(f"Country '{country}' is not supported, skipping.")
+            continue
+        valid_countries.append(country)
+    
+    # Overwrite with the new valid list
+    user.job_countries = valid_countries
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    logger.info(f"Job search countries updated for user: {user.email}")
+
+def insert_user_job_search_titles(
+    user: UserProfile,
+    job_search_titles: List[str],
+    session: Session,
+):
+    """
+    Updates user job search titles in the user profile.
+    Replaces the existing list with the new provided list.
+    :param user: user profile
+    :param job_search_titles: titles for the job search
+    :param session: the db session
+    :return:
+    """
+    logger.info(f"Updating job search titles for user: {user.email}")
+    
+    # Overwrite with the new list
+    user.job_titles = job_search_titles
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    logger.info(f"Job search titles updated for user: {user.email}")
+
+def update_job_applied_status(
+    user: UserProfile,
+    linkedin_job_id: str,
+    applied: bool,
+    session: Session,
+):
+    """
+    Updates the applied status for a specific job and user.
+    """
+    logger.info(f"Updating applied status for job {linkedin_job_id} to {applied} for user {user.email}")
+    
+    # Find the job ID first
+    job = session.exec(select(JobTable).where(JobTable.linkedin_job_id == linkedin_job_id)).first()
+    if not job:
+        logger.warning(f"Job with linkedin_job_id {linkedin_job_id} not found.")
+        return
+
+    # Find the analysis record
+    statement = select(JobAnalysis).where(
+        JobAnalysis.job_id == job.id,
+        JobAnalysis.user_id == user.id
+    )
+    analysis = session.exec(statement).first()
+
+    if analysis:
+        analysis.applied = applied
+        session.add(analysis)
+        session.commit()
+        logger.info("Applied status updated.")
+    else:
+        logger.warning("JobAnalysis record not found for this user/job combination.")

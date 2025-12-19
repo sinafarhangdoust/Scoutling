@@ -4,19 +4,21 @@ from backend.database.models import Job, JobAnalysis, UserProfile
 from backend.config import logger
 from backend.constants import DATABASE_ENDPOINT
 
-engine = create_engine(DATABASE_ENDPOINT, echo=True)
+engine = create_engine(DATABASE_ENDPOINT, echo=False)
 
 users = [
     UserProfile(
         name="single_user",
         email="scoutling@scoutling.com",
+        job_titles=["Machine Learning Engineer"],
+        job_countries=["Denmark"],
+        filter_instructions="Looking for machine learning engineer, AI Engineer and data science roles. No student or internship roles."
     )
 ]
 
 def get_session():
-    """Dependency for FastAPI Endpoints"""
-    with Session(engine) as session:
-        yield session
+    """Dependency db session"""
+    return Session(engine)
 
 def init_db(override: bool = False):
     """Creates the tables if they don't exist and populates default users."""

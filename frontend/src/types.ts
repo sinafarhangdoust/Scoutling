@@ -1,5 +1,5 @@
 export interface Job {
-  id: string;
+  linkedin_job_id: string;
   title: string;
   company: string | null;
   location: string | null;
@@ -7,4 +7,5 @@ export interface Job {
   description: string | null;
   relevant?: boolean;
   relevancy_reason?: string;
+  applied?: boolean;
 }

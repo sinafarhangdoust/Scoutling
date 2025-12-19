@@ -36,9 +36,16 @@ export default function JobCard({ job, isSelected, onClick }: JobCardProps) {
             <span className="font-medium line-clamp-1">{job.company || "Unknown"}</span>
           </div>
 
-          <span className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm group-hover:bg-white">
-            {job.location}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm group-hover:bg-white">
+              {job.location}
+            </span>
+            {job.applied !== undefined && (
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full border shadow-sm ${job.applied ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                {job.applied ? 'Applied' : 'Not Applied'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

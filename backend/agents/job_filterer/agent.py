@@ -14,6 +14,10 @@ class JobFiltererOutput(BaseModel):
     decision: Literal['KEEP', 'DISCARD'] = Field(
         description="The decision to either 'KEEP' or 'DISCARD' the job."
     )
+    relevancy_reason: str = Field(
+        description="A very brief description of why the job is relevant. "
+                    "Must be generated only if decision is 'KEEP'."
+    )
 
 # TODO: read the config from cloud
 def load_config(path: str = None) -> dict:

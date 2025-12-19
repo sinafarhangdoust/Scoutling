@@ -1,42 +1,49 @@
-from typing import List
-from contextlib import asynccontextmanager
+from typing import List, Optional
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, create_engine
+from celery.result import AsyncResult
 
-from backend.APIs.schemas import JobSearchParamsInput, UserInstructionsInput, ResumeInput, Job, FilteredJob
+from backend.APIs.schemas import (
+    JobSearchParamsInput,
+    UserInstructionsInput,
+    ResumeInput,
+    Job,
+    FilteredJob,
+    JobSearchCountriesInput,
+    JobSearchTitlesInput,
+    JobAppliedInput
+)
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper
-from backend.platform.user_settings import save_instructions, save_resume, load_instructions, load_resume
-from backend.database.models import UserProfile, JobAnalysis
+from backend.database.models import JobAnalysis, AnalysisStatus
 from backend.database.models import Job as JobTable
-from backend.queue.worker import analyze_jobs_task
+from backend.database.utils import (
+    get_user,
+    insert_resume,
+    insert_user_instructions,
+    insert_user_job_search_countries,
+    insert_user_job_search_titles,
+    update_job_applied_status,
+)
+from backend.queue.worker import analyze_jobs_task, celery_app
 from backend.constants import DATABASE_ENDPOINT
 
 # TODO: implement authentication for the APIs
 
-db_engine = create_engine(DATABASE_ENDPOINT, echo=True)
+db_engine = create_engine(DATABASE_ENDPOINT, echo=False)
 
 def get_db_session():
     """Dependency for FastAPI Endpoints"""
     with Session(db_engine) as session:
         yield session
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    linkedin_wrapper = LinkedinWrapper()
-    try:
-        yield
-    finally:
-        await linkedin_wrapper.close_connection()
-
-
 # --- App Definition ---
 app = FastAPI(
     title="LinkedIn Jobs API",
     description="API to search jobs using the LinkedinWrapper",
     version="0.0.1",
-    lifespan=lifespan
 )
 
 # --- CORS Configuration---
@@ -123,24 +130,68 @@ async def get_jobs_details(params: JobSearchParamsInput = Depends()):
 @app.post("/jobs/filter", response_model=dict, tags=["Jobs"])
 def trigger_analysis(db_session: Session = Depends(get_db_session)):
 
-    # Assuming that the app is single user
-
-    user = db_session.exec(select(UserProfile).where(UserProfile.email == "scoutling@scoutling.com")).first()
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
     if not user:
         raise HTTPException(
             status_code=404,
             detail="User not found"
         )
 
-    task = analyze_jobs_task.delay(user.id)
+    # Prevent duplicate runs if one is already in progress
+    if user.analysis_task_id:
+        existing_task = AsyncResult(user.analysis_task_id, app=celery_app)
+        # blocked states: PENDING, STARTED, RETRY
+        if existing_task.state in {"PENDING", "STARTED", "RETRY"}:
+            raise HTTPException(
+                status_code=409,
+                detail="Analysis already running"
+            )
+
+    task = analyze_jobs_task.delay(user.email)
+    user.analysis_task_id = task.id
+    user.analysis_status = AnalysisStatus.IN_PROGRESS
+    user.analysis_started_at = datetime.utcnow()
+    db_session.add(user)
+    db_session.commit()
 
     return {"message": "Analysis started", "task_id": task.id}
+
+
+@app.get("/jobs/filter/status", response_model=dict, tags=["Jobs"])
+def get_analysis_status(db_session: Session = Depends(get_db_session)):
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    celery_state: Optional[str] = None
+    if user.analysis_task_id:
+        result = AsyncResult(user.analysis_task_id, app=celery_app)
+        celery_state = result.state
+
+    return {
+        "status": user.analysis_status,
+        "task_id": user.analysis_task_id,
+        "celery_state": celery_state,
+        "started_at": user.analysis_started_at.isoformat() if user.analysis_started_at else None
+    }
 
 @app.get("/jobs/filter", response_model=List[FilteredJob], tags=["Jobs"])
 def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
     # Assuming that the app is single user
 
-    user = db_session.exec(select(UserProfile).where(UserProfile.email == "scoutling@scoutling.com")).first()
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
     if not user:
         raise HTTPException(
             status_code=404,
@@ -151,7 +202,7 @@ def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
         .join(JobAnalysis)
         .where(JobAnalysis.job_id == JobTable.id)
         .where(JobAnalysis.user_id == user.id)
-        .order_by(JobAnalysis.analyzed_at.desc())  # Newest analysis first
+        .order_by(JobAnalysis.analyzed_at.desc())
     )
     results = db_session.exec(statement).all()
     filtered_jobs = []
@@ -165,7 +216,8 @@ def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
             url=job.url,
             description=job.description,
             relevant=analysis.is_relevant,
-            relevancy_reason=analysis.relevancy_reason
+            relevancy_reason=analysis.relevancy_reason,
+            applied=analysis.applied,
         ))
 
     return filtered_jobs
@@ -182,34 +234,143 @@ async def get_job_details(params: Job = Depends()):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/job/applied", response_model=None, tags=["Jobs"])
+def mark_job_applied(
+    params: JobAppliedInput,
+    db_session: Session = Depends(get_db_session)
+):
+    user = get_user(
+        email="scoutling@scoutling.com",
+        session=db_session
+    )
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    
+    update_job_applied_status(
+        user=user,
+        linkedin_job_id=params.linkedin_job_id,
+        applied=params.applied,
+        session=db_session
+    )
+
 @app.get("/user/instructions", response_model=str, tags=['User'])
-async def load_user_instructions():
+async def load_user_instructions(db_session: Session = Depends(get_db_session)):
     try:
-        return load_instructions()
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        return user.filter_instructions
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/user/instructions", response_model=None, tags=['User'])
-async def save_user_instructions(params: UserInstructionsInput):
+async def save_user_instructions(
+          params: UserInstructionsInput,
+          db_session: Session = Depends(get_db_session)
+):
     try:
-        save_instructions(instructions=params.instructions)
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        insert_user_instructions(
+            user=user,
+            user_instructions=params.instructions,
+            session=db_session
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/user/resume", response_model=str, tags=['User'])
-async def load_user_resume():
+async def load_user_resume(db_session: Session = Depends(get_db_session)):
     try:
-        return load_resume()
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        return user.resume_text
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/user/resume", response_model=None, tags=['User'])
-async def save_user_resume(params: ResumeInput):
+async def save_user_resume(
+          params: ResumeInput,
+          db_session: Session = Depends(get_db_session)
+):
     try:
-        save_resume(resume=params.resume)
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        insert_resume(
+            user=user,
+            resume=params.resume,
+            session=db_session
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/user/job_search_countries", response_model=List[str], tags=['User'])
+async def load_user_job_search_countries(db_session: Session = Depends(get_db_session)):
+    try:
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        return user.job_countries
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/user/job_search_countries", response_model=None, tags=['User'])
+async def save_user_job_search_countries(
+          params: JobSearchCountriesInput,
+          db_session: Session = Depends(get_db_session)
+):
+    try:
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        insert_user_job_search_countries(
+            user=user,
+            job_search_countries=params.job_search_countries,
+            session=db_session
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user/job_search_titles", response_model=List[str], tags=['User'])
+async def load_user_job_search_titles(db_session: Session = Depends(get_db_session)):
+    try:
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        return user.job_titles
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/user/job_search_titles", response_model=None, tags=['User'])
+async def save_user_job_search_titles(
+          params: JobSearchTitlesInput,
+          db_session: Session = Depends(get_db_session)
+):
+    try:
+        user = get_user(
+            email="scoutling@scoutling.com",
+            session=db_session
+        )
+        insert_user_job_search_titles(
+            user=user,
+            job_search_titles=params.job_search_titles,
+            session=db_session
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == '__main__':
     import uvicorn

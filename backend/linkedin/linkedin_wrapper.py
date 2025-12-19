@@ -1,6 +1,6 @@
 import asyncio
 import json
-
+from contextlib import asynccontextmanager
 from typing import List, Tuple, Literal, Optional
 import re
 import html
@@ -27,7 +27,6 @@ class LinkedinWrapper(metaclass=SingletonMeta):
 
     def __init__(self, headers: dict = None):
         if not hasattr(self, 'initialized'):
-            self.ahttp_client = httpx.AsyncClient()
             self.base_search_url = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
             if headers:
                 self.headers = headers
@@ -39,10 +38,13 @@ class LinkedinWrapper(metaclass=SingletonMeta):
                 }
             self.initialized = True
 
-    async def close_connection(self):
-        logger.info("Closing httpx client...")
-        await self.ahttp_client.aclose()
-
+    @asynccontextmanager
+    async def _get_client(self, provided_client: Optional[httpx.AsyncClient]):
+        if provided_client:
+            yield provided_client
+        else:
+            async with httpx.AsyncClient(headers=self.headers) as client:
+                yield client
 
     @staticmethod
     def map_loc2ids(location: str) -> Tuple[int, List[int]]:
@@ -156,16 +158,18 @@ class LinkedinWrapper(metaclass=SingletonMeta):
     async def get_job_info(
               self,
               job: Job,
-              random_wait: bool =True
+              random_wait: bool = True,
+              client: Optional[httpx.AsyncClient] = None,
     ):
-        response = await ahttp_with_retry(
-            client=self.ahttp_client,
-            headers=self.headers,
-            url=job.url,
-            random_wait=random_wait,
-        )
-        if response:
-            job.location, job.description = self.process_job_info(response)
+        async with self._get_client(client) as c:
+            response = await ahttp_with_retry(
+                client=c,
+                headers=self.headers,
+                url=job.url,
+                random_wait=random_wait,
+            )
+            if response:
+                job.location, job.description = self.process_job_info(response)
 
         return job
 
@@ -177,6 +181,7 @@ class LinkedinWrapper(metaclass=SingletonMeta):
               start: int = 0,
               n_jobs: int = 10,
               sort_by: Literal['R', 'DD'] = 'R',
+              client: Optional[httpx.AsyncClient] = None,
     ) -> List[Job]:
         """
         Specific wrapper for the Job Search API.
@@ -187,6 +192,7 @@ class LinkedinWrapper(metaclass=SingletonMeta):
         :param start: start index
         :param n_jobs: number of jobs to retrieve
         :param sort_by: sort by relevance or most recent
+        :param client: optional httpx client
         """
 
         params = {
@@ -203,35 +209,81 @@ class LinkedinWrapper(metaclass=SingletonMeta):
             params["f_TPR"] = f"r{str(time_filter)}"
         jobs = []
         logger.info(f"Getting jobs {n_jobs} for location: {location} with keywords: {keywords}")
-        while len(jobs) < n_jobs:
-            response = await ahttp_with_retry(
-                client=self.ahttp_client,
-                url=self.base_search_url,
-                params=params,
-                random_wait=False
-            )
-            if response:
-                processed_response = self.process_jobs(response)
-                if len(processed_response) == 0:
-                    break
-                jobs.extend(processed_response)
+        
+        async with self._get_client(client) as c:
+            while len(jobs) < n_jobs:
+                response = await ahttp_with_retry(
+                    client=c,
+                    url=self.base_search_url,
+                    params=params,
+                    random_wait=False
+                )
+                if response:
+                    processed_response = self.process_jobs(response)
+                    if len(processed_response) == 0:
+                        break
+                    jobs.extend(processed_response)
 
-            params["start"] += 10
+                params["start"] += 10
         logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
 
         jobs = jobs[:n_jobs]
 
         return jobs
 
+    async def get_all_jobs(
+              self,
+              keywords: Optional[str] = None,
+              location: Optional[str] = None,
+              time_filter: Optional[int] = None,
+              sort_by: Literal['R', 'DD'] = 'R',
+              client: Optional[httpx.AsyncClient] = None,
+    ) -> List[Job]:
+        params = {
+            "start": 0,
+            "sortBy": sort_by,
+        }
+        if keywords:
+            params['keywords'] = keywords
+        if location:
+            geo_id, f_pps = self.map_loc2ids(location)
+            params['geoId'] = geo_id
+            params['f_PP'] = ",".join([str(f_pp) for f_pp in f_pps])
+        if time_filter:
+            params["f_TPR"] = f"r{str(time_filter)}"
+
+        logger.info(f"Getting all jobs for location: {location} with keywords: {keywords}")
+        jobs = []
+        completed = False
+        
+        async with self._get_client(client) as c:
+            while not completed:
+                response = await ahttp_with_retry(
+                    client=c,
+                    url=self.base_search_url,
+                    params=params,
+                    random_wait=False
+                )
+                if response:
+                    processed_response = self.process_jobs(response)
+                    if len(processed_response) == 0:
+                        completed = True
+                    jobs.extend(processed_response)
+
+                params["start"] += 10
+        logger.info(f"Found {len(jobs)} jobs for location: {location} with keywords: {keywords}")
+
+        return jobs
+
     async def get_jobs_details(
-            self,
-            keywords: Optional[str] = None,
-            location: Optional[str] = None,
-            time_filter: Optional[int] = None,
-            start: int = 0,
-            n_jobs: int = 10,
-            sort_by: Literal['R', 'DD'] = 'R',
-            concurrency_limit: int = 3,
+              self,
+              keywords: Optional[str] = None,
+              location: Optional[str] = None,
+              time_filter: Optional[int] = None,
+              start: int = 0,
+              n_jobs: int = 10,
+              sort_by: Literal['R', 'DD'] = 'R',
+              concurrency_limit: int = 3,
     ) -> List[Job]:
         """
         Specific wrapper for the Job Search API.
@@ -244,27 +296,61 @@ class LinkedinWrapper(metaclass=SingletonMeta):
         :param sort_by: sort by relevance or most recent
         :param concurrency_limit: the number of concurrency
         """
-        jobs = await self.get_jobs(
-            keywords=keywords,
-            location=location,
-            time_filter=time_filter,
-            start=start,
-            n_jobs=n_jobs,
-            sort_by=sort_by,
-        )
+        async with self._get_client(None) as client:
+            jobs = await self.get_jobs(
+                keywords=keywords,
+                location=location,
+                time_filter=time_filter,
+                start=start,
+                n_jobs=n_jobs,
+                sort_by=sort_by,
+                client=client
+            )
 
-        semaphore = asyncio.Semaphore(concurrency_limit)
+            semaphore = asyncio.Semaphore(concurrency_limit)
 
-        job_info_futures = [
-            asyncio.create_task(async_with_concurrency(
-                func=self.get_job_info,
-                semaphore=semaphore,
-                job=job
-            )) for job in jobs
-        ]
+            job_info_futures = [
+                asyncio.create_task(async_with_concurrency(
+                    func=self.get_job_info,
+                    semaphore=semaphore,
+                    job=job,
+                    client=client
+                )) for job in jobs
+            ]
 
-        # TODO: handle errors
-        return await asyncio.gather(*job_info_futures, return_exceptions=True)
+            # TODO: handle errors
+            return await asyncio.gather(*job_info_futures, return_exceptions=True)
+
+    async def get_all_jobs_details(
+              self,
+              keywords: Optional[str] = None,
+              location: Optional[str] = None,
+              time_filter: Optional[int] = None,
+              sort_by: Literal['R', 'DD'] = 'R',
+              concurrency_limit: int = 3,
+    ):
+        async with self._get_client(None) as client:
+            jobs = await self.get_all_jobs(
+                keywords=keywords,
+                location=location,
+                time_filter=time_filter,
+                sort_by=sort_by,
+                client=client
+            )
+
+            semaphore = asyncio.Semaphore(concurrency_limit)
+
+            job_info_futures = [
+                asyncio.create_task(async_with_concurrency(
+                    func=self.get_job_info,
+                    semaphore=semaphore,
+                    job=job,
+                    client=client
+                )) for job in jobs
+            ]
+
+            return await asyncio.gather(*job_info_futures, return_exceptions=True)
+
 
 
 # Usage example

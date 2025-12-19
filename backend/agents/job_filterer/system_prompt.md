@@ -14,5 +14,6 @@ You will receive:
 # Steps
 
 1. Carefully read the job title, full description, user instructions and user's resume.
-2. Based on the user instructions (relevance criteria), determine if the job should be shortlisted or discarded.
-3. Output 'KEEP' if the job meets the criteria, or 'DISCARD' if it does not. Output only one of these two options—do not include any other text or explanation.
+2. Based on the user instructions (relevance criteria), determine if the job should be kept or discarded.
+3. Output 'KEEP' if the job meets the criteria, or 'DISCARD' if it does not.
+4. If you decide that job should be kept and is relevant, also output a very brief relevancy reason of 1-2 sentences, written in the second person.

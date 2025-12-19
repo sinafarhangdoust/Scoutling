@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import List
+from typing import List, Tuple
 
 from backend.linkedin.linkedin_wrapper import Job
 from backend.agents.job_filterer.agent import instantiate_job_filterer, build_batch_inputs, JobFiltererOutput
@@ -11,7 +11,7 @@ async def filter_jobs(
           jobs: List[Job],
           user_instructions: str,
           resume: str,
-) -> List[Job]:
+) -> Tuple[List[Job], List[str]]:
 
 
     filterer = instantiate_job_filterer()
@@ -20,21 +20,21 @@ async def filter_jobs(
         user_instructions=user_instructions,
         resume=resume
     )
-    outputs = await filterer.abatch(batch_inputs)
+    outputs: List[JobFiltererOutput] = await filterer.abatch(batch_inputs)
 
     filtered_jobs = []
+    relevancy_reasons = []
     for output, job in zip(outputs, jobs):
 
         if not isinstance(output, JobFiltererOutput):
             logger.warning("The job filterer output is not an instance of JobFiltererOutput")
             continue
 
-        if output.decision == 'DISCARD':
-            job.relevant = False
+        if output.decision == 'KEEP':
+            filtered_jobs.append(job)
+            relevancy_reasons.append(output.relevancy_reason)
 
-        filtered_jobs.append(job)
-
-    return filtered_jobs
+    return filtered_jobs, relevancy_reasons
 
 async def main():
     # mock jobs

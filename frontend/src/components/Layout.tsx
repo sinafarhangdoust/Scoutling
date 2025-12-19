@@ -10,7 +10,7 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
 
   return (
-    <div className="flex h-screen bg-[#FDFBF7] text-[#2D3748] overflow-hidden font-sans selection:bg-[#E6AA68] selection:text-white">
+    <div className="flex h-screen bg-brand-50 dark:bg-brand-950 text-brand-900 dark:text-brand-50 overflow-hidden font-sans transition-colors duration-300">
       <Sidebar />
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">

@@ -223,23 +223,23 @@ export default function Suggestions() {
   };
 
   return (
-    <div className="flex flex-col h-full relative bg-brand-50 text-brand-900 font-sans">
+    <div className="flex flex-col h-full relative bg-brand-50 dark:bg-brand-950 text-brand-900 dark:text-brand-50 font-sans transition-colors duration-300">
 
       {/* --- VALIDATION MODAL --- */}
       {showValidationModal && (
         <div className="fixed inset-0 z-[60] bg-brand-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-lg shadow-2xl border border-brand-200 p-6">
+            <div className="bg-white dark:bg-brand-900 w-full max-w-md rounded-lg shadow-2xl border border-brand-200 dark:border-brand-700 p-6">
                 <div className="text-center mb-6">
-                    <h3 className="text-lg font-bold text-brand-900">Profile Incomplete</h3>
-                    <p className="text-sm text-brand-500 mt-1">
+                    <h3 className="text-lg font-bold text-brand-900 dark:text-white">Profile Incomplete</h3>
+                    <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">
                         The AI agent requires the following information:
                     </p>
                 </div>
                 
-                <div className="bg-red-50 border border-red-100 rounded-md p-4 mb-6">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50 rounded-md p-4 mb-6">
                     <ul className="space-y-2">
                         {missingItems.map((item, idx) => (
-                            <li key={idx} className="flex items-center gap-2 text-sm font-medium text-red-700">
+                            <li key={idx} className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
                                 <span className="text-red-500">•</span>
                                 {item}
                             </li>
@@ -250,7 +250,7 @@ export default function Suggestions() {
                 <div className="flex gap-3">
                     <button
                         onClick={() => setShowValidationModal(false)}
-                        className="flex-1 px-4 py-2 bg-white border border-brand-300 rounded-md text-sm font-medium text-brand-700 hover:bg-brand-50"
+                        className="flex-1 px-4 py-2 bg-white dark:bg-brand-800 border border-brand-300 dark:border-brand-700 rounded-md text-sm font-medium text-brand-700 dark:text-brand-200 hover:bg-brand-50 dark:hover:bg-brand-700"
                     >
                         Cancel
                     </button>
@@ -267,21 +267,21 @@ export default function Suggestions() {
 
       {/* --- ANALYSIS OVERLAY --- */}
       {showOverlay && (
-        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8">
+        <div className="fixed inset-0 z-50 bg-white dark:bg-brand-900 flex flex-col items-center justify-center p-8 transition-colors duration-300">
             <div className="mb-8">
                  {analyzing ? (
-                     <div className="w-16 h-16 border-4 border-brand-200 border-t-primary rounded-full animate-spin"></div>
+                     <div className="w-16 h-16 border-4 border-brand-200 dark:border-brand-800 border-t-primary rounded-full animate-spin"></div>
                  ) : (
-                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                     <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600 dark:text-green-400">
                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                      </div>
                  )}
             </div>
 
-            <h2 className="text-2xl font-bold text-brand-900 mb-2">
+            <h2 className="text-2xl font-bold text-brand-900 dark:text-white mb-2">
                 {analyzing ? "AI Agent is Scouting" : "Analysis Complete"}
             </h2>
-            <p className="text-brand-500 mb-8 max-w-md text-center">
+            <p className="text-brand-500 dark:text-brand-400 mb-8 max-w-md text-center">
                 {analyzing
                     ? "Evaluating job descriptions against your resume and preferences..."
                     : "We have updated your suggestions."}
@@ -292,7 +292,7 @@ export default function Suggestions() {
                   setShowOverlay(false);
                   overlayDismissedRef.current = true;
                 }}
-                className="px-6 py-2 bg-brand-100 text-brand-800 rounded-md font-medium hover:bg-brand-200 transition-colors"
+                className="px-6 py-2 bg-brand-100 dark:bg-brand-800 text-brand-800 dark:text-brand-200 rounded-md font-medium hover:bg-brand-200 dark:hover:bg-brand-700 transition-colors"
             >
                 {analyzing ? "Run in Background" : "View Results"}
             </button>
@@ -300,45 +300,45 @@ export default function Suggestions() {
       )}
 
       {/* Header */}
-      <div className="bg-white border-b border-brand-200 sticky top-0 z-20 px-6 py-4 flex justify-between items-center shadow-sm">
-          <h2 className="text-lg font-bold text-brand-900">AI Suggestions</h2>
+      <div className="bg-white dark:bg-brand-900 border-b border-brand-200 dark:border-brand-800 sticky top-0 z-20 px-6 py-4 flex justify-between items-center shadow-sm transition-colors duration-300">
+          <h2 className="text-lg font-bold text-brand-900 dark:text-white">AI Suggestions</h2>
           
           <div className="flex items-center gap-4">
               {/* Filter Group */}
-              <div className="flex bg-brand-50 rounded-lg p-1 border border-brand-200">
+              <div className="flex bg-brand-50 dark:bg-brand-950 rounded-lg p-1 border border-brand-200 dark:border-brand-700">
                   <button
                     onClick={() => setFilterApplied('all')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'all' ? 'bg-white text-brand-900 shadow-sm border border-brand-100' : 'text-brand-500 hover:text-brand-700'}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'all' ? 'bg-white dark:bg-brand-800 text-brand-900 dark:text-white shadow-sm border border-brand-100 dark:border-brand-700' : 'text-brand-500 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-200'}`}
                   >
                     All
                   </button>
                   <button
                     onClick={() => setFilterApplied('applied')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'applied' ? 'bg-white text-brand-900 shadow-sm border border-brand-100' : 'text-brand-500 hover:text-brand-700'}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'applied' ? 'bg-white dark:bg-brand-800 text-brand-900 dark:text-white shadow-sm border border-brand-100 dark:border-brand-700' : 'text-brand-500 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-200'}`}
                   >
                     Applied
                   </button>
                   <button
                     onClick={() => setFilterApplied('not_applied')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'not_applied' ? 'bg-white text-brand-900 shadow-sm border border-brand-100' : 'text-brand-500 hover:text-brand-700'}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'not_applied' ? 'bg-white dark:bg-brand-800 text-brand-900 dark:text-white shadow-sm border border-brand-100 dark:border-brand-700' : 'text-brand-500 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-200'}`}
                   >
                     To Apply
                   </button>
               </div>
 
-              <div className="h-6 w-px bg-brand-200"></div>
-              
+              <div className="h-6 w-px bg-brand-200 dark:bg-brand-700"></div>
+
               <select 
                 value={filterLimit}
                 onChange={(e) => setFilterLimit(Number(e.target.value))}
-                className="bg-white border border-brand-300 text-brand-700 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                className="bg-white dark:bg-brand-900 border border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-300 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value={10}>10 items</option>
                 <option value={20}>20 items</option>
                 <option value={50}>50 items</option>
               </select>
 
-              <div className="h-6 w-px bg-brand-200"></div>
+              <div className="h-6 w-px bg-brand-200 dark:bg-brand-700"></div>
 
               <button
                 onClick={runAIFilter}
@@ -367,11 +367,11 @@ export default function Suggestions() {
         <div className={`flex flex-col h-full transition-all duration-300 ease-in-out ${selectedJob ? 'w-5/12' : 'w-full max-w-3xl mx-auto'}`}>
 
             {/* Scrollable Area */}
-            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-brand-300">
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-brand-300 dark:scrollbar-thumb-brand-700">
                 {relevantJobs.length === 0 && !analyzing && (
-                    <div className="h-64 flex flex-col items-center justify-center text-center border-2 border-dashed border-brand-200 rounded-lg bg-brand-50">
-                        <p className="font-semibold text-brand-700">No suggestions yet</p>
-                        <p className="text-sm text-brand-500 mt-1">Run the analysis to find matches.</p>
+                    <div className="h-64 flex flex-col items-center justify-center text-center border-2 border-dashed border-brand-200 dark:border-brand-700 rounded-lg bg-brand-50 dark:bg-brand-900/50">
+                        <p className="font-semibold text-brand-700 dark:text-brand-300">No suggestions yet</p>
+                        <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">Run the analysis to find matches.</p>
                     </div>
                 )}
 
@@ -385,8 +385,8 @@ export default function Suggestions() {
                         
                         {/* Relevancy Indicator - Professional */}
                         <div className="flex items-start gap-2 mt-1 px-1">
-                             <div className={`mt-1 w-2 h-2 rounded-full ${job.relevant ? 'bg-emerald-500' : 'bg-brand-300'}`}></div>
-                             <p className="text-xs text-brand-500 italic leading-relaxed">
+                             <div className={`mt-1 w-2 h-2 rounded-full ${job.relevant ? 'bg-emerald-500' : 'bg-brand-300 dark:bg-brand-600'}`}></div>
+                             <p className="text-xs text-brand-500 dark:text-brand-400 italic leading-relaxed">
                                 {job.relevancy_reason}
                              </p>
                         </div>
@@ -395,11 +395,11 @@ export default function Suggestions() {
             </div>
 
             {/* Pagination Controls */}
-            <div className="mt-3 pt-3 border-t border-brand-200 flex justify-between items-center">
+            <div className="mt-3 pt-3 border-t border-brand-200 dark:border-brand-800 flex justify-between items-center">
                 <button
                 onClick={handlePrev}
                 disabled={currentPage === 1 || analyzing}
-                className="px-3 py-1.5 rounded-md text-sm font-medium text-brand-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-brand-200 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
+                className="px-3 py-1.5 rounded-md text-sm font-medium text-brand-600 dark:text-brand-300 hover:bg-white dark:hover:bg-brand-800 hover:shadow-sm border border-transparent hover:border-brand-200 dark:hover:border-brand-700 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
                 >
                 Previous
                 </button>
@@ -409,7 +409,7 @@ export default function Suggestions() {
                 <button
                 onClick={handleNext}
                 disabled={analyzing || (relevantJobs.length < filterLimit && relevantJobs.length > 0)}
-                className="px-3 py-1.5 rounded-md text-sm font-medium text-brand-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-brand-200 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
+                className="px-3 py-1.5 rounded-md text-sm font-medium text-brand-600 dark:text-brand-300 hover:bg-white dark:hover:bg-brand-800 hover:shadow-sm border border-transparent hover:border-brand-200 dark:hover:border-brand-700 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
                 >
                 Next
                 </button>
@@ -417,13 +417,13 @@ export default function Suggestions() {
         </div>
 
         {/* RIGHT: Preview Panel */}
-        <div className={`bg-white rounded-lg shadow-sm border border-brand-200 overflow-hidden flex flex-col relative transition-all duration-300 ease-in-out ${selectedJob ? 'w-7/12 opacity-100 translate-x-0' : 'w-0 border-0 opacity-0 translate-x-10'}`}>
+        <div className={`bg-white dark:bg-brand-900 rounded-lg shadow-sm border border-brand-200 dark:border-brand-800 overflow-hidden flex flex-col relative transition-all duration-300 ease-in-out ${selectedJob ? 'w-7/12 opacity-100 translate-x-0' : 'w-0 border-0 opacity-0 translate-x-10'}`}>
             {selectedJob ? (
                 <div className="flex flex-col h-full">
                      {/* Applied Prompt */}
                      {showAppliedPrompt && (
-                        <div className="bg-primary-light border-b border-primary/20 p-4 flex items-center justify-between">
-                            <span className="text-sm font-medium text-primary-hover">Did you apply to this position?</span>
+                        <div className="bg-primary-light dark:bg-primary/20 border-b border-primary/20 p-4 flex items-center justify-between">
+                            <span className="text-sm font-medium text-primary-hover dark:text-primary-light">Did you apply to this position?</span>
                             <div className="flex gap-2">
                                 <button 
                                     onClick={() => confirmApplied(true)} 
@@ -433,7 +433,7 @@ export default function Suggestions() {
                                 </button>
                                 <button 
                                     onClick={() => confirmApplied(false)} 
-                                    className="px-3 py-1 bg-white border border-brand-200 text-brand-600 text-xs font-semibold rounded hover:bg-brand-50"
+                                    className="px-3 py-1 bg-white dark:bg-brand-800 border border-brand-200 dark:border-brand-700 text-brand-600 dark:text-brand-300 text-xs font-semibold rounded hover:bg-brand-50 dark:hover:bg-brand-700"
                                 >
                                     No
                                 </button>
@@ -441,18 +441,18 @@ export default function Suggestions() {
                         </div>
                     )}
 
-                    <div className="px-8 py-6 border-b border-brand-100 flex justify-between items-start gap-4">
+                    <div className="px-8 py-6 border-b border-brand-100 dark:border-brand-800 flex justify-between items-start gap-4">
                         <div>
                             <div className="flex items-center gap-2 mb-2">
-                                <h1 className="text-2xl font-bold text-brand-900 leading-tight">{selectedJob.title}</h1>
+                                <h1 className="text-2xl font-bold text-brand-900 dark:text-white leading-tight">{selectedJob.title}</h1>
                                 {selectedJob.relevant && (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase tracking-wide">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wide">
                                         Match
                                     </span>
                                 )}
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-brand-500">
-                                <span className="font-medium text-brand-700">{selectedJob.company}</span>
+                            <div className="flex items-center gap-4 text-sm text-brand-500 dark:text-brand-400">
+                                <span className="font-medium text-brand-700 dark:text-brand-300">{selectedJob.company}</span>
                                 <span>•</span>
                                 <span>{selectedJob.location}</span>
                             </div>
@@ -466,9 +466,9 @@ export default function Suggestions() {
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-brand-200">
-                        <div className="prose prose-sm prose-slate max-w-none text-brand-600">
-                            <h3 className="text-lg font-semibold text-brand-800 mb-4">Job Description</h3>
+                    <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-brand-200 dark:scrollbar-thumb-brand-700">
+                        <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-brand-600 dark:text-brand-300">
+                            <h3 className="text-lg font-semibold text-brand-800 dark:text-brand-200 mb-4">Job Description</h3>
                             <p className="whitespace-pre-line leading-relaxed">
                                 {selectedJob.description || "No description provided."}
                             </p>
@@ -476,7 +476,7 @@ export default function Suggestions() {
                     </div>
                 </div>
             ) : (
-                <div className="h-full flex flex-col items-center justify-center text-brand-400 bg-brand-50/50">
+                <div className="h-full flex flex-col items-center justify-center text-brand-400 bg-brand-50/50 dark:bg-brand-900/50">
                     <p className="font-medium">Select a job to view details</p>
                 </div>
             )}

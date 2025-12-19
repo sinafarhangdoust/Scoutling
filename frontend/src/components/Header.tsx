@@ -18,13 +18,13 @@ export default function Header({
   if (!showSearch) return null;
 
   return (
-    <header className="bg-white border-b border-brand-200 z-20 sticky top-0 px-6 py-4 shadow-sm">
+    <header className="bg-white dark:bg-brand-900 border-b border-brand-200 dark:border-brand-800 z-20 sticky top-0 px-6 py-4 shadow-sm transition-colors duration-300">
       <div className="max-w-7xl mx-auto w-full">
         <div className="flex flex-col md:flex-row gap-4 w-full items-center">
             
-            <div className="flex-1 flex w-full md:w-auto bg-brand-50 rounded-lg border border-brand-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all overflow-hidden">
+            <div className="flex-1 flex w-full md:w-auto bg-brand-50 dark:bg-brand-950/50 rounded-lg border border-brand-200 dark:border-brand-700 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all overflow-hidden">
                  {/* Keywords Input */}
-                <div className="flex-1 relative border-r border-brand-200">
+                <div className="flex-1 relative border-r border-brand-200 dark:border-brand-700">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                     </div>
@@ -32,7 +32,7 @@ export default function Header({
                         value={keywords}
                         onChange={(e) => setKeywords?.(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && onSearch?.()}
-                        className="w-full pl-10 bg-transparent p-2.5 text-sm font-medium text-brand-900 placeholder-brand-400 outline-none"
+                        className="w-full pl-10 bg-transparent p-2.5 text-sm font-medium text-brand-900 dark:text-brand-50 placeholder-brand-400 outline-none"
                         placeholder="Search for roles (e.g. Software Engineer)"
                     />
                 </div>
@@ -46,7 +46,7 @@ export default function Header({
                         value={location}
                         onChange={(e) => setLocation?.(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && onSearch?.()}
-                        className="w-full pl-10 bg-transparent p-2.5 text-sm font-medium text-brand-900 placeholder-brand-400 outline-none"
+                        className="w-full pl-10 bg-transparent p-2.5 text-sm font-medium text-brand-900 dark:text-brand-50 placeholder-brand-400 outline-none"
                         placeholder="Location (e.g. Remote, NY)"
                     />
                 </div>
@@ -57,7 +57,7 @@ export default function Header({
               onClick={onSearch}
               disabled={loading}
               className={`
-                px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary
+                px-6 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-brand-900
                 ${loading 
                   ? 'bg-brand-400 cursor-wait' 
                   : 'bg-primary hover:bg-primary-hover active:translate-y-px'

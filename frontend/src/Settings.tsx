@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
+import ResumeEditor from './components/ResumeEditor';
 import api from './api';
 
 export default function Settings() {
@@ -60,15 +61,15 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-brand-50 text-brand-900 font-sans">
+    <div className="flex flex-col h-screen bg-brand-50 dark:bg-brand-950 text-brand-900 dark:text-brand-50 font-sans transition-colors duration-300">
       <Header showSearch={false} />
 
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-3xl mx-auto pb-20">
+      <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-brand-300 dark:scrollbar-thumb-brand-700">
+        <div className="max-w-6xl mx-auto pb-20">
           
-          <div className="mb-8 border-b border-brand-200 pb-4">
-            <h1 className="text-2xl font-bold text-brand-900">Settings</h1>
-            <p className="text-sm text-brand-500 mt-1">Configure your AI scout preferences and profile.</p>
+          <div className="mb-8 border-b border-brand-200 dark:border-brand-800 pb-4">
+            <h1 className="text-2xl font-bold text-brand-900 dark:text-white">Settings</h1>
+            <p className="text-sm text-brand-500 dark:text-brand-400 mt-1">Configure your AI scout preferences and profile.</p>
           </div>
 
           {isLoading ? (
@@ -76,33 +77,31 @@ export default function Settings() {
                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-8"> {/* Increased spacing */}
               
               {/* Resume Section */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-200">
+              <div className="bg-white dark:bg-brand-900 p-6 rounded-lg shadow-sm border border-brand-200 dark:border-brand-800 relative z-0">
                 <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-brand-900">Resume Content</h3>
-                    <p className="text-sm text-brand-500">Paste the text content of your resume for the AI to analyze.</p>
+                    <h3 className="text-lg font-semibold text-brand-900 dark:text-white">Resume Content</h3>
+                    <p className="text-sm text-brand-500 dark:text-brand-400">Paste your resume in Markdown format for the best results.</p>
                 </div>
-                <textarea
+                <ResumeEditor 
                   value={resume}
-                  onChange={(e) => setResume(e.target.value)}
-                  className="w-full h-48 bg-brand-50 border border-brand-300 rounded-md p-3 font-mono text-xs text-brand-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-y"
-                  placeholder="Paste resume text here..."
+                  onChange={setResume}
                 />
               </div>
 
               {/* Preferences Section */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-200">
+              <div className="bg-white dark:bg-brand-900 p-6 rounded-lg shadow-sm border border-brand-200 dark:border-brand-800 relative z-0">
                 <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-brand-900">Job Preferences</h3>
-                    <p className="text-sm text-brand-500">Define your target markets and roles.</p>
+                    <h3 className="text-lg font-semibold text-brand-900 dark:text-white">Job Preferences</h3>
+                    <p className="text-sm text-brand-500 dark:text-brand-400">Define your target markets and roles.</p>
                 </div>
 
                 <div className="space-y-6">
                     {/* Countries */}
                     <div>
-                        <label className="block text-sm font-medium text-brand-700 mb-2">Target Countries</label>
+                        <label className="block text-sm font-medium text-brand-700 dark:text-brand-300 mb-2">Target Countries</label>
                         <div className="flex flex-wrap gap-2">
                             {['Denmark', 'Netherlands', 'Canada', 'Italy'].map((country) => (
                                 <button
@@ -116,8 +115,8 @@ export default function Settings() {
                                     }}
                                     className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-all ${
                                         selectedCountries.includes(country)
-                                            ? 'bg-primary/10 border-primary text-primary'
-                                            : 'bg-white border-brand-300 text-brand-600 hover:bg-brand-50'
+                                            ? 'bg-primary/10 border-primary text-primary dark:text-primary-light'
+                                            : 'bg-white dark:bg-brand-800 border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-700'
                                     }`}
                                 >
                                     {country}
@@ -128,7 +127,7 @@ export default function Settings() {
 
                     {/* Job Titles */}
                     <div>
-                        <label className="block text-sm font-medium text-brand-700 mb-2">Job Titles (Max 3)</label>
+                        <label className="block text-sm font-medium text-brand-700 dark:text-brand-300 mb-2">Job Titles (Max 3)</label>
                         <div className="flex gap-2 mb-3">
                             <input
                                 type="text"
@@ -145,7 +144,7 @@ export default function Settings() {
                                 }}
                                 disabled={jobTitles.length >= 3}
                                 placeholder="e.g. Backend Engineer"
-                                className="flex-1 bg-white border border-brand-300 rounded-md px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:bg-brand-50"
+                                className="flex-1 bg-white dark:bg-brand-800 border border-brand-300 dark:border-brand-700 rounded-md px-3 py-2 text-sm text-brand-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none disabled:bg-brand-50 dark:disabled:bg-brand-900"
                             />
                             <button
                                 onClick={() => {
@@ -155,7 +154,7 @@ export default function Settings() {
                                     }
                                 }}
                                 disabled={!jobTitleInput.trim() || jobTitles.length >= 3}
-                                className="bg-brand-800 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-900 disabled:opacity-50"
+                                className="bg-brand-800 dark:bg-brand-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-brand-900 dark:hover:bg-brand-600 disabled:opacity-50"
                             >
                                 Add
                             </button>
@@ -164,11 +163,11 @@ export default function Settings() {
                         {jobTitles.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {jobTitles.map((title, index) => (
-                                    <span key={index} className="inline-flex items-center gap-1 bg-brand-100 text-brand-800 px-2.5 py-1 rounded-md text-sm font-medium">
+                                    <span key={index} className="inline-flex items-center gap-1 bg-brand-100 dark:bg-brand-800 text-brand-800 dark:text-brand-200 px-2.5 py-1 rounded-md text-sm font-medium">
                                         {title}
                                         <button
                                             onClick={() => setJobTitles(jobTitles.filter((_, i) => i !== index))}
-                                            className="ml-1 text-brand-500 hover:text-brand-900 focus:outline-none"
+                                            className="ml-1 text-brand-500 dark:text-brand-400 hover:text-brand-900 dark:hover:text-white focus:outline-none"
                                         >
                                             ×
                                         </button>
@@ -181,23 +180,23 @@ export default function Settings() {
               </div>
 
               {/* Instructions Section */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-brand-200">
+              <div className="bg-white dark:bg-brand-900 p-6 rounded-lg shadow-sm border border-brand-200 dark:border-brand-800 relative z-0">
                 <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-brand-900">Agent Instructions</h3>
-                    <p className="text-sm text-brand-500">Provide specific instructions for the AI agent (e.g. "Focus on remote-first companies").</p>
+                    <h3 className="text-lg font-semibold text-brand-900 dark:text-white">Agent Instructions</h3>
+                    <p className="text-sm text-brand-500 dark:text-brand-400">Provide specific instructions for the AI agent (e.g. "Focus on remote-first companies").</p>
                 </div>
                 <textarea
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
-                  className="w-full h-32 bg-white border border-brand-300 rounded-md p-3 text-sm text-brand-900 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
+                  className="w-full h-32 bg-white dark:bg-brand-800 border border-brand-300 dark:border-brand-700 rounded-md p-3 text-sm text-brand-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none"
                   placeholder="Enter custom instructions..."
                 />
               </div>
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-4 pt-4 border-t border-brand-200">
+              <div className="flex items-center justify-end gap-4 pt-4 border-t border-brand-200 dark:border-brand-800">
                 {message && (
-                  <span className={`text-sm font-medium animate-fade-in ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`text-sm font-medium animate-fade-in ${message.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                     {message.text}
                   </span>
                 )}
@@ -205,7 +204,7 @@ export default function Settings() {
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="bg-primary text-white px-6 py-2.5 rounded-md font-semibold text-sm hover:bg-primary-hover shadow-sm disabled:opacity-70 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  className="bg-primary text-white px-6 py-2.5 rounded-md font-semibold text-sm hover:bg-primary-hover shadow-sm disabled:opacity-70 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-brand-900"
                 >
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>

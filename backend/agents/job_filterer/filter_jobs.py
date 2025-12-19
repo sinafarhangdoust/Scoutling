@@ -30,11 +30,9 @@ async def filter_jobs(
             logger.warning("The job filterer output is not an instance of JobFiltererOutput")
             continue
 
-        if output.decision == 'DISCARD':
-            job.relevant = False
-
-        filtered_jobs.append(job)
-        relevancy_reasons.append(output.relevancy_reason)
+        if output.decision == 'KEEP':
+            filtered_jobs.append(job)
+            relevancy_reasons.append(output.relevancy_reason)
 
     return filtered_jobs, relevancy_reasons
 

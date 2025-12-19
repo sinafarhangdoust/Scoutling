@@ -10,6 +10,8 @@ users = [
     UserProfile(
         name="single_user",
         email="scoutling@scoutling.com",
+        job_titles=["Machine Learning Engineer"],
+        job_countries=["Denmark"],
         filter_instructions="Looking for machine learning engineer, AI Engineer and data science roles. No student or internship roles."
     )
 ]

@@ -6,8 +6,8 @@ import api from './api';
 
 // Helper interface matching your Backend's FilteredJob schema
 interface FilteredJobResponse {
-  id: number; // Database ID
-  linkedin_job_id: string; // The string ID we use in the frontend
+  id: number;
+  linkedin_job_id: string;
   title: string;
   company: string | null;
   location: string | null;
@@ -35,7 +35,6 @@ export default function Suggestions() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   // Filters State
-  // Removed filterRelevant state
   const [filterApplied, setFilterApplied] = useState<string>('all');
   const [filterLimit, setFilterLimit] = useState<number>(10);
   const [start, setStart] = useState(0);
@@ -48,25 +47,20 @@ export default function Suggestions() {
   // Calculated values for pagination
   const currentPage = Math.floor(start / filterLimit) + 1;
 
-  // Load existing suggestions and status on mount
   useEffect(() => {
     fetchSuggestions(0);
-    
-    // Initial status check
     api.get<AnalysisStatus>('/jobs/filter/status').then(response => {
         setAnalysisStatus(response.data);
         if (response.data.status === 'IN_PROGRESS') {
             startPolling();
         }
     }).catch(err => console.error(err));
-  }, []); // Initial load only for status
+  }, []);
 
-  // Refetch when filters change (reset to page 1)
   useEffect(() => {
       fetchSuggestions(0);
   }, [filterApplied, filterLimit]);
 
-  // Reset prompt when job changes
   useEffect(() => {
     setShowAppliedPrompt(false);
   }, [selectedJob?.linkedin_job_id]);
@@ -74,17 +68,10 @@ export default function Suggestions() {
   const fetchSuggestions = async (offset: number = 0) => {
     try {
       const params: any = { limit: filterLimit, offset: offset };
-      
-      // Removed logic for filterRelevant
-      
       if (filterApplied === 'applied') params.applied = true;
       else if (filterApplied === 'not_applied') params.applied = false;
 
-      // Call the GET endpoint you defined
       const response = await api.get<FilteredJobResponse[]>('/jobs/filter', { params });
-
-      // Map backend response to frontend Job type
-      // We use 'linkedin_job_id' as 'id' to keep consistency with the Dashboard
       const mappedJobs: Job[] = response.data.map(item => ({
         linkedin_job_id: item.linkedin_job_id,
         title: item.title,
@@ -104,7 +91,6 @@ export default function Suggestions() {
     }
   };
 
-  // Pagination Helper
   const goToPage = (page: number) => {
     const newStart = (page - 1) * filterLimit;
     fetchSuggestions(newStart);
@@ -136,11 +122,9 @@ export default function Suggestions() {
             applied: true
         });
 
-        // Update local state
         const updatedJob = { ...selectedJob, applied: true };
         setSelectedJob(updatedJob);
         setRelevantJobs(prev => prev.map(j => j.linkedin_job_id === updatedJob.linkedin_job_id ? updatedJob : j));
-
     } catch (error) {
         console.error("Failed to update applied status", error);
     }
@@ -159,14 +143,12 @@ export default function Suggestions() {
 
   const startPolling = () => {
       setAnalyzing(true);
-      
-      // If we are starting polling and didn't dismiss overlay, show it
       if (!overlayDismissedRef.current) {
           setShowOverlay(true);
       }
 
       let attempts = 0;
-      const maxAttempts = 200; // ~10 minutes max polling
+      const maxAttempts = 200;
 
       const interval = setInterval(async () => {
           attempts++;
@@ -177,17 +159,12 @@ export default function Suggestions() {
               if (!isRunning || attempts >= maxAttempts) {
                   clearInterval(interval);
                   setAnalyzing(false);
-
-                  // If completed (or failed), refresh the list
                   await fetchSuggestions(0);
-
-                  // Handle overlay logic
                   overlayDismissedRef.current = false;
 
                   if (status?.status === 'FAILED' || attempts >= maxAttempts) {
                       setShowOverlay(false);
                   } else {
-                      // Success case: allow overlay to show "Analysis Complete" for a moment
                       setTimeout(() => setShowOverlay(false), 2000);
                   }
               }
@@ -198,7 +175,6 @@ export default function Suggestions() {
   };
 
   const runAIFilter = async () => {
-    // 1. Validation: Ensure user settings are complete
     try {
         const [resumeRes, countriesRes, titlesRes] = await Promise.all([
             api.get<string>('/user/resume'),
@@ -226,7 +202,6 @@ export default function Suggestions() {
         return;
     }
 
-    // Reset overlay flag so it shows up for new run
     overlayDismissedRef.current = false;
     setShowOverlay(true); 
     setAnalyzing(true);
@@ -237,7 +212,6 @@ export default function Suggestions() {
     } catch (error: unknown) {
         const apiError = error as { response?: { status: number } };
         if (apiError.response?.status === 409) {
-            // Already running, just attach poller
             startPolling();
         } else {
             console.error("AI Analysis failed", error);
@@ -249,77 +223,68 @@ export default function Suggestions() {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full relative bg-brand-50 text-brand-900 font-sans">
 
       {/* --- VALIDATION MODAL --- */}
       {showValidationModal && (
-        <div className="fixed inset-0 z-[60] bg-[#2D3748]/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-md rounded-[2rem] shadow-2xl border-2 border-[#E6AA68]/20 p-8 transform transition-all scale-100">
-                <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 bg-[#FFF4E6] rounded-full flex items-center justify-center mb-6 text-3xl">
-                        ⚙️
-                    </div>
-                    <h3 className="text-2xl font-black text-[#2D3748] mb-2">Profile Incomplete</h3>
-                    <p className="text-[#2D3748]/60 mb-6 leading-relaxed">
-                        To find the best matches, the AI agent needs a bit more info from you.
+        <div className="fixed inset-0 z-[60] bg-brand-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-lg shadow-2xl border border-brand-200 p-6">
+                <div className="text-center mb-6">
+                    <h3 className="text-lg font-bold text-brand-900">Profile Incomplete</h3>
+                    <p className="text-sm text-brand-500 mt-1">
+                        The AI agent requires the following information:
                     </p>
-                    
-                    <div className="w-full bg-[#FDFBF7] border border-[#2D3748]/10 rounded-xl p-4 mb-4 text-left">
-                        <p className="text-xs font-bold text-[#2D3748]/40 uppercase tracking-wider mb-3">Missing Items</p>
-                        <ul className="space-y-2">
-                            {missingItems.map((item, idx) => (
-                                <li key={idx} className="flex items-center gap-3 text-[#2D3748] font-bold">
-                                    <span className="text-red-500 text-lg">•</span>
-                                    {item}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                </div>
+                
+                <div className="bg-red-50 border border-red-100 rounded-md p-4 mb-6">
+                    <ul className="space-y-2">
+                        {missingItems.map((item, idx) => (
+                            <li key={idx} className="flex items-center gap-2 text-sm font-medium text-red-700">
+                                <span className="text-red-500">•</span>
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
 
-                    <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-xl text-left mb-6 w-full">
-                        <span className="text-xl">💡</span>
-                        <p className="text-xs font-medium text-blue-800 leading-relaxed">
-                            <span className="font-bold">Pro Tip:</span> While optional, adding specific <strong>Agent Instructions</strong> is highly recommended for the best results.
-                        </p>
-                    </div>
-
-                    <div className="flex gap-3 w-full">
-                        <button
-                            onClick={() => setShowValidationModal(false)}
-                            className="flex-1 py-3 px-4 rounded-xl font-bold text-[#2D3748] hover:bg-[#F3F4F6] transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() => navigate('/settings')}
-                            className="flex-1 py-3 px-4 rounded-xl font-bold bg-[#2D3748] text-white hover:bg-[#E6AA68] hover:shadow-lg transition-all"
-                        >
-                            Go to Settings →
-                        </button>
-                    </div>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setShowValidationModal(false)}
+                        className="flex-1 px-4 py-2 bg-white border border-brand-300 rounded-md text-sm font-medium text-brand-700 hover:bg-brand-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => navigate('/settings')}
+                        className="flex-1 px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary-hover shadow-sm"
+                    >
+                        Go to Settings
+                    </button>
                 </div>
             </div>
         </div>
       )}
 
-      {/* --- FULL SCREEN LOADER --- */}
+      {/* --- ANALYSIS OVERLAY --- */}
       {showOverlay && (
-        <div className="fixed inset-0 z-50 bg-[#FDFBF7]/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
-            <div className="relative mb-10">
-                <div className="w-40 h-40 bg-[#2D3748] rounded-full flex items-center justify-center shadow-2xl border-8 border-[#E6AA68] animate-[spin_4s_linear_infinite]">
-                    <span className="text-7xl">🧭</span>
-                </div>
-                <div className="absolute -top-6 -right-6 text-5xl animate-bounce delay-75">✨</div>
-                <div className="absolute bottom-0 -left-8 text-5xl animate-bounce delay-300">🤖</div>
+        <div className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-8">
+            <div className="mb-8">
+                 {analyzing ? (
+                     <div className="w-16 h-16 border-4 border-brand-200 border-t-primary rounded-full animate-spin"></div>
+                 ) : (
+                     <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                     </div>
+                 )}
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-black text-[#2D3748] mb-6 text-center tracking-tight">
-                {analyzing ? "Scouting Matches..." : "Analysis Complete!"}
+            <h2 className="text-2xl font-bold text-brand-900 mb-2">
+                {analyzing ? "AI Agent is Scouting" : "Analysis Complete"}
             </h2>
-            <p className="text-xl text-[#2D3748]/70 mb-12 text-center max-w-lg font-medium leading-relaxed">
+            <p className="text-brand-500 mb-8 max-w-md text-center">
                 {analyzing
-                    ? "Our AI agent is reading through job descriptions to find your perfect fit."
-                    : "We found new matches for you!"}
+                    ? "Evaluating job descriptions against your resume and preferences..."
+                    : "We have updated your suggestions."}
             </p>
 
             <button
@@ -327,250 +292,192 @@ export default function Suggestions() {
                   setShowOverlay(false);
                   overlayDismissedRef.current = true;
                 }}
-                className="bg-white border-2 border-[#2D3748]/10 text-[#2D3748] px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#E6AA68]/20 hover:border-[#E6AA68] transition-all shadow-sm active:scale-95 flex items-center gap-2"
+                className="px-6 py-2 bg-brand-100 text-brand-800 rounded-md font-medium hover:bg-brand-200 transition-colors"
             >
-                <span>🏃‍♂️</span> {analyzing ? "Let me browse while you work" : "Show me the jobs"}
+                {analyzing ? "Run in Background" : "View Results"}
             </button>
         </div>
       )}
 
       {/* Header */}
-      <div className="bg-[#FDFBF7]/80 backdrop-blur-md z-20 flex flex-col border-b-2 border-[#E6AA68]/20">
-          <div className="p-5 flex justify-between items-center">
-             <h2 className="text-2xl font-black text-[#2D3748]">AI Suggestions</h2>
-             <button
-                onClick={runAIFilter}
-                disabled={analyzing || analysisStatus.status === 'IN_PROGRESS'}
-                className={`
-                    px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg disabled:opacity-100 disabled:cursor-progress
-                    ${analyzing ? 'bg-[#E6AA68]/20 text-[#2D3748] border-2 border-[#E6AA68]' : 'bg-[#2D3748] text-white hover:bg-[#E6AA68]'}
-                `}
-             >
-                {analyzing ? (
-                    <>
-                        <div className="w-4 h-4 border-2 border-[#2D3748] border-t-transparent rounded-full animate-spin"></div>
-                        Agent is Scouting...
-                    </>
-                ) : (
-                    <>
-                        <span>✨</span> Scout Matches
-                    </>
-                )}
-             </button>
-          </div>
+      <div className="bg-white border-b border-brand-200 sticky top-0 z-20 px-6 py-4 flex justify-between items-center shadow-sm">
+          <h2 className="text-lg font-bold text-brand-900">AI Suggestions</h2>
           
-          {/* Filters Toolbar - Modernized */}
-          <div className="px-6 pb-4 flex items-center gap-6">
-              
-              {/* Applied Filter */}
-              <div className="flex bg-white rounded-xl p-1 shadow-sm border border-[#2D3748]/10">
+          <div className="flex items-center gap-4">
+              {/* Filter Group */}
+              <div className="flex bg-brand-50 rounded-lg p-1 border border-brand-200">
                   <button
                     onClick={() => setFilterApplied('all')}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${filterApplied === 'all' ? 'bg-[#2D3748] text-white shadow-md' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'all' ? 'bg-white text-brand-900 shadow-sm border border-brand-100' : 'text-brand-500 hover:text-brand-700'}`}
                   >
                     All
                   </button>
                   <button
                     onClick={() => setFilterApplied('applied')}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${filterApplied === 'applied' ? 'bg-[#E6AA68] text-white shadow-md' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'applied' ? 'bg-white text-brand-900 shadow-sm border border-brand-100' : 'text-brand-500 hover:text-brand-700'}`}
                   >
                     Applied
                   </button>
                   <button
                     onClick={() => setFilterApplied('not_applied')}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${filterApplied === 'not_applied' ? 'bg-gray-200 text-[#2D3748] shadow-inner' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${filterApplied === 'not_applied' ? 'bg-white text-brand-900 shadow-sm border border-brand-100' : 'text-brand-500 hover:text-brand-700'}`}
                   >
                     To Apply
                   </button>
               </div>
 
-              {/* Limit Filter */}
-              <div className="flex items-center gap-2 ml-auto">
-                  <span className="text-xs font-bold text-[#2D3748]/40 uppercase tracking-wider">Show</span>
-                  <div className="flex bg-white rounded-xl p-1 shadow-sm border border-[#2D3748]/10">
-                      {[10, 20, 50].map((limit) => (
-                          <button
-                            key={limit}
-                            onClick={() => setFilterLimit(limit)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${filterLimit === limit ? 'bg-[#2D3748] text-white shadow-md' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
-                          >
-                              {limit}
-                          </button>
-                      ))}
-                  </div>
-              </div>
+              <div className="h-6 w-px bg-brand-200"></div>
+              
+              <select 
+                value={filterLimit}
+                onChange={(e) => setFilterLimit(Number(e.target.value))}
+                className="bg-white border border-brand-300 text-brand-700 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value={10}>10 items</option>
+                <option value={20}>20 items</option>
+                <option value={50}>50 items</option>
+              </select>
+
+              <div className="h-6 w-px bg-brand-200"></div>
+
+              <button
+                onClick={runAIFilter}
+                disabled={analyzing || analysisStatus.status === 'IN_PROGRESS'}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-md hover:bg-primary-hover shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+             >
+                {analyzing ? (
+                    <>
+                        <div className="w-3 h-3 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>
+                        Processing...
+                    </>
+                ) : (
+                    <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                        Run Analysis
+                    </>
+                )}
+             </button>
           </div>
       </div>
 
       {/* Main Content */}
-      <div className={`flex flex-1 overflow-hidden p-6 transition-all duration-500 ease-in-out ${selectedJob ? 'gap-8' : 'gap-0'}`}>
+      <div className={`flex flex-1 overflow-hidden p-6 transition-all duration-300 ease-in-out ${selectedJob ? 'gap-6' : 'gap-0'}`}>
 
         {/* LEFT: Results List */}
-        <div className={`flex flex-col h-full transition-all duration-500 ease-in-out ${selectedJob ? 'w-5/12' : 'w-full max-w-4xl mx-auto'}`}>
+        <div className={`flex flex-col h-full transition-all duration-300 ease-in-out ${selectedJob ? 'w-5/12' : 'w-full max-w-3xl mx-auto'}`}>
 
             {/* Scrollable Area */}
-            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#E6AA68]/50">
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-brand-300">
                 {relevantJobs.length === 0 && !analyzing && (
-                    <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
-                        <div className="text-6xl mb-4 grayscale">✨</div>
-                        <p className="font-bold text-lg">No suggestions yet.</p>
-                        <p className="text-sm">Click the button to let the AI find your best matches.</p>
-                        <p className="text-xs mt-2 opacity-60">(Or try adjusting your filters)</p>
+                    <div className="h-64 flex flex-col items-center justify-center text-center border-2 border-dashed border-brand-200 rounded-lg bg-brand-50">
+                        <p className="font-semibold text-brand-700">No suggestions yet</p>
+                        <p className="text-sm text-brand-500 mt-1">Run the analysis to find matches.</p>
                     </div>
                 )}
 
                 {relevantJobs.map((job) => (
                     <div key={job.linkedin_job_id} className="relative group mb-4">
-                        {/* Relevancy Badge */}
-                        <div className={`absolute -right-2 -top-2 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-sm ${job.relevant ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-400 border border-red-100'}`}>
-                            {job.relevant ? 'RELEVANT' : 'NOT RELEVANT'}
-                        </div>
-
                         <JobCard
                             job={job}
                             isSelected={selectedJob?.linkedin_job_id === job.linkedin_job_id}
                             onClick={() => setSelectedJob(job)}
                         />
-
-                        {/* Reason Box */}
-                        <div className="ml-4 mr-2 -mt-4 p-3 bg-[#FDFBF7] border-l-2 border-[#E6AA68] text-xs font-medium text-[#2D3748]/70 italic rounded-b-lg shadow-sm">
-                            🤖 {job.relevancy_reason}
+                        
+                        {/* Relevancy Indicator - Professional */}
+                        <div className="flex items-start gap-2 mt-1 px-1">
+                             <div className={`mt-1 w-2 h-2 rounded-full ${job.relevant ? 'bg-emerald-500' : 'bg-brand-300'}`}></div>
+                             <p className="text-xs text-brand-500 italic leading-relaxed">
+                                {job.relevancy_reason}
+                             </p>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Pagination Controls (Fixed at Bottom) */}
-            <div className="mt-4 pt-4 border-t-2 border-[#2D3748]/5 flex justify-center items-center gap-2">
-
-                {/* Previous Arrow */}
+            {/* Pagination Controls */}
+            <div className="mt-3 pt-3 border-t border-brand-200 flex justify-between items-center">
                 <button
                 onClick={handlePrev}
                 disabled={currentPage === 1 || analyzing}
-                className="w-8 h-8 flex items-center justify-center rounded-lg font-bold text-[#2D3748] hover:bg-[#E6AA68]/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                title="Previous Page"
+                className="px-3 py-1.5 rounded-md text-sm font-medium text-brand-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-brand-200 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
                 >
-                ←
+                Previous
                 </button>
 
-                {/* Page 1 (Always Visible) */}
-                <button
-                onClick={() => goToPage(1)}
-                className={`w-8 h-8 rounded-lg font-bold text-sm transition-all ${
-                    currentPage === 1 
-                    ? 'bg-[#E6AA68] text-white shadow-md scale-110' 
-                    : 'text-[#2D3748] hover:bg-[#E6AA68]/10'
-                }`}
-                >
-                1
-                </button>
+                <span className="text-xs font-medium text-brand-400">Page {currentPage}</span>
 
-                {/* Ellipsis if we are far from page 1 */}
-                {currentPage > 3 && <span className="text-[#2D3748]/40 font-bold">...</span>}
-
-                {/* Previous Neighbor */}
-                {currentPage > 2 && (
-                <button
-                    onClick={() => goToPage(currentPage - 1)}
-                    className="w-8 h-8 rounded-lg font-bold text-sm text-[#2D3748] hover:bg-[#E6AA68]/10 transition-colors"
-                >
-                    {currentPage - 1}
-                </button>
-                )}
-
-                {/* Current Page (if not 1) */}
-                {currentPage !== 1 && (
-                <button
-                    disabled
-                    className="w-8 h-8 rounded-lg font-bold text-sm bg-[#E6AA68] text-white shadow-md scale-110"
-                >
-                    {currentPage}
-                </button>
-                )}
-
-                {/* Next Neighbor (if full page implies more results) */}
-                {relevantJobs.length === filterLimit && (
-                <button
-                    onClick={() => goToPage(currentPage + 1)}
-                    className="w-8 h-8 rounded-lg font-bold text-sm text-[#2D3748] hover:bg-[#E6AA68]/10 transition-colors"
-                >
-                    {currentPage + 1}
-                </button>
-                )}
-
-                {/* Next Arrow */}
                 <button
                 onClick={handleNext}
                 disabled={analyzing || (relevantJobs.length < filterLimit && relevantJobs.length > 0)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg font-bold text-[#2D3748] hover:bg-[#E6AA68]/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                title="Next Page"
+                className="px-3 py-1.5 rounded-md text-sm font-medium text-brand-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-brand-200 disabled:opacity-50 disabled:hover:bg-transparent transition-all"
                 >
-                →
+                Next
                 </button>
             </div>
         </div>
 
         {/* RIGHT: Preview Panel */}
-        <div className={`bg-white rounded-[2rem] shadow-xl border-[#2D3748]/5 overflow-hidden flex flex-col relative transition-all duration-500 ease-in-out ${selectedJob ? 'w-7/12 border-2 opacity-100 translate-x-0' : 'w-0 border-0 opacity-0 translate-x-20'}`}>
+        <div className={`bg-white rounded-lg shadow-sm border border-brand-200 overflow-hidden flex flex-col relative transition-all duration-300 ease-in-out ${selectedJob ? 'w-7/12 opacity-100 translate-x-0' : 'w-0 border-0 opacity-0 translate-x-10'}`}>
             {selectedJob ? (
-                <>
-                    <div className="h-3 bg-[#E6AA68] w-full"></div>
-                    <div className="p-8 overflow-y-auto h-full scrollbar-thin scrollbar-thumb-[#2D3748]/20">
-                        
-                        {/* Applied Prompt */}
-                        {showAppliedPrompt && (
-                            <div className="bg-[#E6AA68]/20 p-4 rounded-xl mb-6 flex items-center justify-between animate-in fade-in slide-in-from-top-4 border border-[#E6AA68]">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl">📝</span>
-                                    <span className="font-bold text-[#2D3748]">Have you applied to this job?</span>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => confirmApplied(true)} 
-                                        className="px-6 py-2 bg-[#2D3748] text-white rounded-lg text-sm font-bold hover:bg-green-600 shadow-md transition-all active:scale-95"
-                                    >
-                                        Yes
-                                    </button>
-                                    <button 
-                                        onClick={() => confirmApplied(false)} 
-                                        className="px-6 py-2 bg-white text-[#2D3748] border border-[#2D3748]/10 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors"
-                                    >
-                                        No
-                                    </button>
-                                </div>
+                <div className="flex flex-col h-full">
+                     {/* Applied Prompt */}
+                     {showAppliedPrompt && (
+                        <div className="bg-primary-light border-b border-primary/20 p-4 flex items-center justify-between">
+                            <span className="text-sm font-medium text-primary-hover">Did you apply to this position?</span>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => confirmApplied(true)} 
+                                    className="px-3 py-1 bg-primary text-white text-xs font-semibold rounded hover:bg-primary-hover"
+                                >
+                                    Yes
+                                </button>
+                                <button 
+                                    onClick={() => confirmApplied(false)} 
+                                    className="px-3 py-1 bg-white border border-brand-200 text-brand-600 text-xs font-semibold rounded hover:bg-brand-50"
+                                >
+                                    No
+                                </button>
                             </div>
-                        )}
-
-                        <div className="flex justify-between items-start gap-4 mb-6">
-                            <div>
-                                <h2 className="text-3xl font-black text-[#2D3748] mb-2">{selectedJob.title}</h2>
-                                <div className="flex gap-2">
-                                    <span className="font-bold text-[#E6AA68]">{selectedJob.company}</span>
-                                    <span className="text-[#2D3748]/30">•</span>
-                                    <span className="text-[#2D3748]/60">{selectedJob.location}</span>
-                                    {selectedJob.applied && (
-                                        <>
-                                            <span className="text-[#2D3748]/30">•</span>
-                                            <span className="text-green-600 font-bold flex items-center gap-1">✅ Applied</span>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                            <button
-                                onClick={(e) => handleApplyClick(e, selectedJob.url)}
-                                className="bg-[#2D3748] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#E6AA68] hover:shadow-lg transition-all transform hover:-translate-y-1 flex items-center gap-2 whitespace-nowrap group"
-                            >
-                                Apply Now <span className="group-hover:translate-x-1 transition-transform">→</span>
-                            </button>
                         </div>
-                        <div className="prose max-w-none text-[#2D3748]/80 whitespace-pre-line">
-                            {selectedJob.description || "No detailed description available."}
+                    )}
+
+                    <div className="px-8 py-6 border-b border-brand-100 flex justify-between items-start gap-4">
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <h1 className="text-2xl font-bold text-brand-900 leading-tight">{selectedJob.title}</h1>
+                                {selectedJob.relevant && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase tracking-wide">
+                                        Match
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-brand-500">
+                                <span className="font-medium text-brand-700">{selectedJob.company}</span>
+                                <span>•</span>
+                                <span>{selectedJob.location}</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={(e) => handleApplyClick(e, selectedJob.url)}
+                            className="flex-shrink-0 bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-md font-semibold text-sm shadow-sm transition-colors"
+                        >
+                            Apply Now
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-brand-200">
+                        <div className="prose prose-sm prose-slate max-w-none text-brand-600">
+                            <h3 className="text-lg font-semibold text-brand-800 mb-4">Job Description</h3>
+                            <p className="whitespace-pre-line leading-relaxed">
+                                {selectedJob.description || "No description provided."}
+                            </p>
                         </div>
                     </div>
-                </>
+                </div>
             ) : (
-                <div className="h-full flex flex-col items-center justify-center text-[#2D3748]/30 bg-[#FDFBF7]/50">
-                    <p className="font-bold text-xl">Select a job to see details</p>
+                <div className="h-full flex flex-col items-center justify-center text-brand-400 bg-brand-50/50">
+                    <p className="font-medium">Select a job to view details</p>
                 </div>
             )}
         </div>

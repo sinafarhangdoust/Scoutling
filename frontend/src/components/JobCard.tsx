@@ -11,42 +11,34 @@ export default function JobCard({ job, isSelected, onClick }: JobCardProps) {
     <div
       onClick={onClick}
       className={`
-        relative p-5 mb-4 rounded-xl cursor-pointer transition-all duration-300 border-2
-        group
+        relative p-4 mb-3 rounded-lg border cursor-pointer transition-all duration-200 group
         ${isSelected 
-          ? 'bg-orange-50 border-orange-400 shadow-md translate-x-2' 
-          : 'bg-white border-slate-200 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1'
+          ? 'bg-white border-primary ring-1 ring-primary shadow-md z-10' 
+          : 'bg-white border-brand-200 hover:border-brand-300 hover:shadow-sm'
         }
       `}
     >
-      {/* Selection Marker (The "Soul" indicator) */}
-      <div className={`
-        absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-12 rounded-r-full transition-all duration-300
-        ${isSelected ? 'bg-orange-500 opacity-100' : 'bg-gray-200 opacity-0 group-hover:opacity-100'}
-      `}></div>
-
-      <div className="pl-3">
-        <h3 className={`font-bold text-lg mb-2 ${isSelected ? 'text-gray-900' : 'text-gray-700 group-hover:text-orange-600'}`}>
+      <div className="flex justify-between items-start mb-2">
+        <h3 className={`font-semibold text-base leading-snug line-clamp-2 ${isSelected ? 'text-brand-900' : 'text-brand-800 group-hover:text-primary'}`}>
           {job.title}
         </h3>
+        {job.applied && (
+             <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200 ml-2">
+                Applied
+             </span>
+        )}
+      </div>
 
-        <div className="flex justify-between items-center mt-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span className="bg-gray-100 p-1.5 rounded-md text-lg leading-none">🏢</span>
-            <span className="font-medium line-clamp-1">{job.company || "Unknown"}</span>
+      <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-sm text-brand-600">
+            <svg className="w-4 h-4 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            <span className="font-medium truncate">{job.company || "Confidential Company"}</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm group-hover:bg-white">
-              {job.location}
-            </span>
-            {job.applied !== undefined && (
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full border shadow-sm ${job.applied ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
-                {job.applied ? 'Applied' : 'Not Applied'}
-              </span>
-            )}
+          
+          <div className="flex items-center gap-2 text-xs text-brand-500">
+             <svg className="w-3.5 h-3.5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+             <span className="truncate">{job.location}</span>
           </div>
-        </div>
       </div>
     </div>
   );

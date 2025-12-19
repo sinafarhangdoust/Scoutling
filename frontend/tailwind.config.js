@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,25 +8,46 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"DM Sans"', 'sans-serif'], // Suggesting a rounder, friendly font
+        sans: ['"Inter"', 'system-ui', 'sans-serif'], // Professional, clean font
       },
       colors: {
-        scout: {
-          cream: '#FDFBF7',    // The background color of your logo
-          dark: '#2D3748',     // The dark grey/blue of the text/circle
-          gold: '#E6AA68',     // The compass needle gold
-          'gold-light': '#F9EDD6', // Lighter gold for hover states
-          blue: '#34495E',     // The dark needle part
-          mint: '#E0F2F1',     // A complementary pastel
-          'mint-dark': '#26A69A',
+        brand: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a', // Slate-900: Primary Dark
+          950: '#020617',
+        },
+        primary: {
+            DEFAULT: '#2563EB', // Blue-600: Professional Action Blue
+            hover: '#1d4ed8',   // Blue-700
+            light: '#eff6ff',   // Blue-50
         }
       },
       animation: {
-        'bounce-slow': 'bounce 3s infinite',
+        'fade-in': 'fadeIn 0.5s ease-out',
+        'slide-up': 'slideUp 0.4s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        }
       }
     },
   },
   plugins: [
-    require('tailwind-scrollbar'), // Make sure to run: npm install tailwind-scrollbar
+    require('tailwind-scrollbar'),
+    require('@tailwindcss/typography'),
   ],
 }

@@ -34,14 +34,23 @@ export default function Suggestions() {
   const [relevantJobs, setRelevantJobs] = useState<Job[]>([]);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
+  // Filters State
+  // Removed filterRelevant state
+  const [filterApplied, setFilterApplied] = useState<string>('all');
+  const [filterLimit, setFilterLimit] = useState<number>(10);
+  const [start, setStart] = useState(0);
+
   // Validation Modal State
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [missingItems, setMissingItems] = useState<string[]>([]);
   const [showAppliedPrompt, setShowAppliedPrompt] = useState(false);
 
+  // Calculated values for pagination
+  const currentPage = Math.floor(start / filterLimit) + 1;
+
   // Load existing suggestions and status on mount
   useEffect(() => {
-    fetchSuggestions();
+    fetchSuggestions(0);
     
     // Initial status check
     api.get<AnalysisStatus>('/jobs/filter/status').then(response => {
@@ -50,17 +59,29 @@ export default function Suggestions() {
             startPolling();
         }
     }).catch(err => console.error(err));
-  }, []);
+  }, []); // Initial load only for status
+
+  // Refetch when filters change (reset to page 1)
+  useEffect(() => {
+      fetchSuggestions(0);
+  }, [filterApplied, filterLimit]);
 
   // Reset prompt when job changes
   useEffect(() => {
     setShowAppliedPrompt(false);
   }, [selectedJob?.linkedin_job_id]);
 
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = async (offset: number = 0) => {
     try {
+      const params: any = { limit: filterLimit, offset: offset };
+      
+      // Removed logic for filterRelevant
+      
+      if (filterApplied === 'applied') params.applied = true;
+      else if (filterApplied === 'not_applied') params.applied = false;
+
       // Call the GET endpoint you defined
-      const response = await api.get<FilteredJobResponse[]>('/jobs/filter');
+      const response = await api.get<FilteredJobResponse[]>('/jobs/filter', { params });
 
       // Map backend response to frontend Job type
       // We use 'linkedin_job_id' as 'id' to keep consistency with the Dashboard
@@ -77,9 +98,24 @@ export default function Suggestions() {
       }));
 
       setRelevantJobs(mappedJobs);
+      setStart(offset);
     } catch (error) {
       console.error("Failed to load suggestions", error);
     }
+  };
+
+  // Pagination Helper
+  const goToPage = (page: number) => {
+    const newStart = (page - 1) * filterLimit;
+    fetchSuggestions(newStart);
+  };
+
+  const handleNext = () => {
+    goToPage(currentPage + 1);
+  };
+
+  const handlePrev = () => {
+    if (currentPage > 1) goToPage(currentPage - 1);
   };
 
   const handleApplyClick = (e: React.MouseEvent, url: string) => {
@@ -143,7 +179,7 @@ export default function Suggestions() {
                   setAnalyzing(false);
 
                   // If completed (or failed), refresh the list
-                  await fetchSuggestions();
+                  await fetchSuggestions(0);
 
                   // Handle overlay logic
                   overlayDismissedRef.current = false;
@@ -299,61 +335,179 @@ export default function Suggestions() {
       )}
 
       {/* Header */}
-      <div className="bg-[#FDFBF7]/80 backdrop-blur-md z-20 p-5 border-b-2 border-[#E6AA68]/20 flex justify-between items-center">
-         <h2 className="text-2xl font-black text-[#2D3748]">AI Suggestions</h2>
-         <button
-            onClick={runAIFilter}
-            disabled={analyzing || analysisStatus.status === 'IN_PROGRESS'}
-            className={`
-                px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg disabled:opacity-100 disabled:cursor-progress
-                ${analyzing ? 'bg-[#E6AA68]/20 text-[#2D3748] border-2 border-[#E6AA68]' : 'bg-[#2D3748] text-white hover:bg-[#E6AA68]'}
-            `}
-         >
-            {analyzing ? (
-                <>
-                    <div className="w-4 h-4 border-2 border-[#2D3748] border-t-transparent rounded-full animate-spin"></div>
-                    Agent is Scouting...
-                </>
-            ) : (
-                <>
-                    <span>✨</span> Scout Matches
-                </>
-            )}
-         </button>
+      <div className="bg-[#FDFBF7]/80 backdrop-blur-md z-20 flex flex-col border-b-2 border-[#E6AA68]/20">
+          <div className="p-5 flex justify-between items-center">
+             <h2 className="text-2xl font-black text-[#2D3748]">AI Suggestions</h2>
+             <button
+                onClick={runAIFilter}
+                disabled={analyzing || analysisStatus.status === 'IN_PROGRESS'}
+                className={`
+                    px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg disabled:opacity-100 disabled:cursor-progress
+                    ${analyzing ? 'bg-[#E6AA68]/20 text-[#2D3748] border-2 border-[#E6AA68]' : 'bg-[#2D3748] text-white hover:bg-[#E6AA68]'}
+                `}
+             >
+                {analyzing ? (
+                    <>
+                        <div className="w-4 h-4 border-2 border-[#2D3748] border-t-transparent rounded-full animate-spin"></div>
+                        Agent is Scouting...
+                    </>
+                ) : (
+                    <>
+                        <span>✨</span> Scout Matches
+                    </>
+                )}
+             </button>
+          </div>
+          
+          {/* Filters Toolbar - Modernized */}
+          <div className="px-6 pb-4 flex items-center gap-6">
+              
+              {/* Applied Filter */}
+              <div className="flex bg-white rounded-xl p-1 shadow-sm border border-[#2D3748]/10">
+                  <button
+                    onClick={() => setFilterApplied('all')}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${filterApplied === 'all' ? 'bg-[#2D3748] text-white shadow-md' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setFilterApplied('applied')}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${filterApplied === 'applied' ? 'bg-[#E6AA68] text-white shadow-md' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
+                  >
+                    Applied
+                  </button>
+                  <button
+                    onClick={() => setFilterApplied('not_applied')}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${filterApplied === 'not_applied' ? 'bg-gray-200 text-[#2D3748] shadow-inner' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
+                  >
+                    To Apply
+                  </button>
+              </div>
+
+              {/* Limit Filter */}
+              <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-xs font-bold text-[#2D3748]/40 uppercase tracking-wider">Show</span>
+                  <div className="flex bg-white rounded-xl p-1 shadow-sm border border-[#2D3748]/10">
+                      {[10, 20, 50].map((limit) => (
+                          <button
+                            key={limit}
+                            onClick={() => setFilterLimit(limit)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${filterLimit === limit ? 'bg-[#2D3748] text-white shadow-md' : 'text-[#2D3748]/60 hover:bg-gray-100'}`}
+                          >
+                              {limit}
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
       </div>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden p-6 gap-8">
 
         {/* LEFT: Results List */}
-        <div className="w-5/12 flex flex-col overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#E6AA68]/50">
-            {relevantJobs.length === 0 && !analyzing && (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
-                    <div className="text-6xl mb-4 grayscale">✨</div>
-                    <p className="font-bold text-lg">No suggestions yet.</p>
-                    <p className="text-sm">Click the button to let the AI find your best matches.</p>
-                </div>
-            )}
+        <div className="w-5/12 flex flex-col h-full">
 
-            {relevantJobs.map((job) => (
-                <div key={job.linkedin_job_id} className="relative group mb-4">
-                    {/* Relevancy Badge */}
-                    <div className={`absolute -right-2 -top-2 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-sm ${job.relevant ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-400 border border-red-100'}`}>
-                        {job.relevant ? 'RELEVANT' : 'NOT RELEVANT'}
+            {/* Scrollable Area */}
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#E6AA68]/50">
+                {relevantJobs.length === 0 && !analyzing && (
+                    <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                        <div className="text-6xl mb-4 grayscale">✨</div>
+                        <p className="font-bold text-lg">No suggestions yet.</p>
+                        <p className="text-sm">Click the button to let the AI find your best matches.</p>
+                        <p className="text-xs mt-2 opacity-60">(Or try adjusting your filters)</p>
                     </div>
+                )}
 
-                    <JobCard
-                        job={job}
-                        isSelected={selectedJob?.linkedin_job_id === job.linkedin_job_id}
-                        onClick={() => setSelectedJob(job)}
-                    />
+                {relevantJobs.map((job) => (
+                    <div key={job.linkedin_job_id} className="relative group mb-4">
+                        {/* Relevancy Badge */}
+                        <div className={`absolute -right-2 -top-2 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-sm ${job.relevant ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-400 border border-red-100'}`}>
+                            {job.relevant ? 'RELEVANT' : 'NOT RELEVANT'}
+                        </div>
 
-                    {/* Reason Box */}
-                    <div className="ml-4 mr-2 -mt-4 p-3 bg-[#FDFBF7] border-l-2 border-[#E6AA68] text-xs font-medium text-[#2D3748]/70 italic rounded-b-lg shadow-sm">
-                        🤖 {job.relevancy_reason}
+                        <JobCard
+                            job={job}
+                            isSelected={selectedJob?.linkedin_job_id === job.linkedin_job_id}
+                            onClick={() => setSelectedJob(job)}
+                        />
+
+                        {/* Reason Box */}
+                        <div className="ml-4 mr-2 -mt-4 p-3 bg-[#FDFBF7] border-l-2 border-[#E6AA68] text-xs font-medium text-[#2D3748]/70 italic rounded-b-lg shadow-sm">
+                            🤖 {job.relevancy_reason}
+                        </div>
                     </div>
-                </div>
-            ))}
+                ))}
+            </div>
+
+            {/* Pagination Controls (Fixed at Bottom) */}
+            <div className="mt-4 pt-4 border-t-2 border-[#2D3748]/5 flex justify-center items-center gap-2">
+
+                {/* Previous Arrow */}
+                <button
+                onClick={handlePrev}
+                disabled={currentPage === 1 || analyzing}
+                className="w-8 h-8 flex items-center justify-center rounded-lg font-bold text-[#2D3748] hover:bg-[#E6AA68]/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                title="Previous Page"
+                >
+                ←
+                </button>
+
+                {/* Page 1 (Always Visible) */}
+                <button
+                onClick={() => goToPage(1)}
+                className={`w-8 h-8 rounded-lg font-bold text-sm transition-all ${
+                    currentPage === 1 
+                    ? 'bg-[#E6AA68] text-white shadow-md scale-110' 
+                    : 'text-[#2D3748] hover:bg-[#E6AA68]/10'
+                }`}
+                >
+                1
+                </button>
+
+                {/* Ellipsis if we are far from page 1 */}
+                {currentPage > 3 && <span className="text-[#2D3748]/40 font-bold">...</span>}
+
+                {/* Previous Neighbor */}
+                {currentPage > 2 && (
+                <button
+                    onClick={() => goToPage(currentPage - 1)}
+                    className="w-8 h-8 rounded-lg font-bold text-sm text-[#2D3748] hover:bg-[#E6AA68]/10 transition-colors"
+                >
+                    {currentPage - 1}
+                </button>
+                )}
+
+                {/* Current Page (if not 1) */}
+                {currentPage !== 1 && (
+                <button
+                    disabled
+                    className="w-8 h-8 rounded-lg font-bold text-sm bg-[#E6AA68] text-white shadow-md scale-110"
+                >
+                    {currentPage}
+                </button>
+                )}
+
+                {/* Next Neighbor (if full page implies more results) */}
+                {relevantJobs.length === filterLimit && (
+                <button
+                    onClick={() => goToPage(currentPage + 1)}
+                    className="w-8 h-8 rounded-lg font-bold text-sm text-[#2D3748] hover:bg-[#E6AA68]/10 transition-colors"
+                >
+                    {currentPage + 1}
+                </button>
+                )}
+
+                {/* Next Arrow */}
+                <button
+                onClick={handleNext}
+                disabled={analyzing || (relevantJobs.length < filterLimit && relevantJobs.length > 0)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg font-bold text-[#2D3748] hover:bg-[#E6AA68]/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                title="Next Page"
+                >
+                →
+                </button>
+            </div>
         </div>
 
         {/* RIGHT: Preview Panel */}

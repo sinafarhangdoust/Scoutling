@@ -14,7 +14,8 @@ from backend.APIs.schemas import (
     FilteredJob,
     JobSearchCountriesInput,
     JobSearchTitlesInput,
-    JobAppliedInput
+    JobAppliedInput,
+    GetFilteredJobInput,
 )
 from backend.linkedin.linkedin_wrapper import LinkedinWrapper
 from backend.database.models import JobAnalysis, AnalysisStatus
@@ -185,7 +186,13 @@ def get_analysis_status(db_session: Session = Depends(get_db_session)):
     }
 
 @app.get("/jobs/filter", response_model=List[FilteredJob], tags=["Jobs"])
-def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
+def get_filtered_jobs(
+    limit: int = 10,
+    offset: int = 0,
+    relevant: Optional[bool] = None,
+    applied: Optional[bool] = None,
+    db_session: Session = Depends(get_db_session)
+):
     # Assuming that the app is single user
 
     user = get_user(
@@ -202,8 +209,22 @@ def get_filtered_jobs(db_session: Session = Depends(get_db_session)):
         .join(JobAnalysis)
         .where(JobAnalysis.job_id == JobTable.id)
         .where(JobAnalysis.user_id == user.id)
-        .order_by(JobAnalysis.analyzed_at.desc())
     )
+
+    if relevant is not None:
+        statement = statement.where(JobAnalysis.is_relevant == relevant)
+    
+    if applied is not None:
+        statement = statement.where(JobAnalysis.applied == applied)
+
+    statement = statement.order_by(JobAnalysis.analyzed_at.desc())
+    
+    if limit:
+        statement = statement.limit(limit)
+    
+    if offset:
+        statement = statement.offset(offset)
+
     results = db_session.exec(statement).all()
     filtered_jobs = []
     for job, analysis in results:

@@ -42,3 +42,11 @@ class FilteredJob(Job):
 class JobAppliedInput(BaseModel):
     linkedin_job_id: str = Field(..., description="The LinkedIn Job ID")
     applied: bool = Field(..., description="The applied status")
+
+class GetFilteredJobFilters(BaseModel):
+    relevant: bool = Field(default=None, description="Job type relevancy, None means relevant and not relevant")
+    applied: bool = Field(default=None, description="The applied status, None means applied and not applied")
+
+class GetFilteredJobInput(BaseModel):
+    limit: int = Field(default=10, ge=1, le=50, description="Number of jobs to retrieve")
+    filters: GetFilteredJobFilters = Field(default=None, description="The filters to retrieve analyzed jobs")

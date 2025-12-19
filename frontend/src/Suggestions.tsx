@@ -403,10 +403,10 @@ export default function Suggestions() {
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden p-6 gap-8">
+      <div className={`flex flex-1 overflow-hidden p-6 transition-all duration-500 ease-in-out ${selectedJob ? 'gap-8' : 'gap-0'}`}>
 
         {/* LEFT: Results List */}
-        <div className="w-5/12 flex flex-col h-full">
+        <div className={`flex flex-col h-full transition-all duration-500 ease-in-out ${selectedJob ? 'w-5/12' : 'w-full max-w-4xl mx-auto'}`}>
 
             {/* Scrollable Area */}
             <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#E6AA68]/50">
@@ -511,7 +511,7 @@ export default function Suggestions() {
         </div>
 
         {/* RIGHT: Preview Panel */}
-        <div className="w-7/12 bg-white rounded-[2rem] shadow-xl border-2 border-[#2D3748]/5 overflow-hidden flex flex-col relative">
+        <div className={`bg-white rounded-[2rem] shadow-xl border-[#2D3748]/5 overflow-hidden flex flex-col relative transition-all duration-500 ease-in-out ${selectedJob ? 'w-7/12 border-2 opacity-100 translate-x-0' : 'w-0 border-0 opacity-0 translate-x-20'}`}>
             {selectedJob ? (
                 <>
                     <div className="h-3 bg-[#E6AA68] w-full"></div>
